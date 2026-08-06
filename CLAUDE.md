@@ -11,29 +11,51 @@ PATH at the start of every session, so `agent-reach`, `yt-dlp`, `gh`, `bili` and
 The `agent-reach` skill (`~/.claude/skills/agent-reach/SKILL.md`) carries the full
 routing table; the table below is the subset that is verified working here.
 
+## Social platforms and web pages: `reach`
+
+Agent Reach's own routing assumes a desktop browser session and an unblocked
+residential IP, and neither holds here. `reach` (see `.claude/skills/reach/SKILL.md`,
+source `scripts/reach.py`) implements the paths that were measured to work, with a
+fallback chain per platform. **Use it for every social platform and for reading any
+web page.** `reach doctor` probes all 17 live in ~30s.
+
 | Need | Command |
 |------|---------|
-| Semantic web search | `mcporter call exa.web_search_exa query="..." numResults=5` |
-| Read a web page | **the `WebFetch` tool** — see limitation 1 below |
-| GitHub repo/file/issues | `gh api repos/OWNER/REPO/...` — see limitation 2 below |
-| YouTube metadata | `yt-dlp --skip-download --dump-json URL` |
+| Read any web page/article | `reach web URL` |
+| Semantic web search | `reach search "QUERY"` |
+| X/Twitter post | `reach x URL_OR_ID` (search: `reach x "QUERY"`) |
+| Reddit | `reach reddit "QUERY"` or `reach reddit URL` |
+| Bluesky | `reach bluesky "QUERY"` / `--user HANDLE` |
+| Mastodon | `reach mastodon TAG_OR_URL` |
+| Telegram | `reach telegram CHANNEL` |
+| TikTok / Instagram / Facebook | `reach tiktok\|instagram\|facebook URL_OR_QUERY` |
+| LinkedIn / Threads / Pinterest | `reach linkedin\|threads\|pinterest URL_OR_QUERY` |
+| YouTube | `reach youtube URL_OR_QUERY` |
+| Wikipedia / HN / Stack Overflow | `reach wikipedia\|hn\|stackoverflow "QUERY"` |
+| Platform status | `reach doctor` |
+
+## Agent Reach's own channels
+
+| Need | Command |
+|------|---------|
 | YouTube subtitles | `yt-dlp --write-sub --write-auto-sub --skip-download -o "/tmp/%(id)s" URL` |
 | RSS/Atom | `~/.agent-reach-venv/bin/python -c "import feedparser; ..."` |
 | V2EX | `curl -s https://www.v2ex.com/api/topics/hot.json -H 'User-Agent: agent-reach/1.0'` |
 | Bilibili | `bili search "query" --type video -n 5` |
-| Channel status | `agent-reach doctor` (config check) |
+| GitHub repo/file/issues | `gh api repos/OWNER/REPO/...` — see limitation 2 below |
+| Channel status | `agent-reach doctor` (config check only) |
 | Real end-to-end check | `./scripts/agent-reach-verify.sh` (network check) |
 
 ### Two environment limitations — read before trusting `doctor`
 
 1. **Jina Reader is blocked from this container's IP.** `curl https://r.jina.ai/URL`
-   returns HTTP 401 `AuthenticationRequiredError: ... bad IP reputation`. Agent Reach
-   has no other backend for generic web pages, and `agent-reach doctor` still reports
-   the web channel green because `WebChannel.check()` deliberately never touches the
-   network. **Use Claude Code's built-in `WebFetch` tool for arbitrary web pages.**
-   Anything in the skill's `references/web.md` that says `curl r.jina.ai` does not work
-   here. This also degrades the LinkedIn fallback and V2EX *search* (V2EX topic/node
-   APIs are direct and unaffected).
+   returns HTTP 401 `AuthenticationRequiredError: ... bad IP reputation`, and
+   `agent-reach doctor` still reports the web channel green because
+   `WebChannel.check()` deliberately never touches the network. **Use `reach web URL`**
+   (direct fetch → Exa → Jina) or Claude Code's `WebFetch` tool. Anything in the
+   agent-reach skill's `references/web.md` that says `curl r.jina.ai` does not work
+   here. Same for V2EX *search*, which proxies through Jina; the V2EX topic/node APIs
+   are direct and unaffected.
 
 2. **The GitHub API is scoped to this session's repositories.** `gh api repos/OWNER/REPO`
    works for repos attached to the session; `gh search repos`, `gh search code` and any
@@ -53,13 +75,20 @@ tell you to run these:
 Everything else in the table is verified live — see `docs/agent-reach.md` for the
 per-channel test results and the full QA report.
 
-### Channels that are deliberately NOT installed
+### Platform coverage and its limits
 
-Twitter/X, Reddit, Xiaohongshu, Facebook, Instagram, Xueqiu, Xiaoyuzhou and LinkedIn
-all require either a user-supplied credential (cookie export, Groq API key) or a
-desktop Chrome session via the OpenCLI extension, neither of which exists in a headless
-container. Do **not** try to log into these platforms or scrape a user's cookies.
-If the user wants one, `docs/agent-reach.md` has the enable steps.
+`reach` reaches all 17 platforms anonymously, but not all of them yield full content.
+Full text: web, Exa search, X posts, Bluesky, Mastodon, Telegram, YouTube, Wikipedia,
+Hacker News, Stack Overflow. Metadata or search-index only: TikTok, Instagram,
+Facebook, LinkedIn, Threads, Pinterest, Reddit. `reach` labels the degraded cases in
+its output — **repeat that caveat to the user**; never present an Exa substitute as
+"what Reddit said".
+
+Agent Reach's own credentialed channels (Xiaohongshu, Xueqiu, Xiaoyuzhou, and the
+cookie-based Twitter/Reddit backends) are still not installed: they need a cookie
+export, a Groq key, or a desktop Chrome session. Do **not** try to log into any
+platform or read a user's browser cookies. `docs/agent-reach.md` has the enable steps
+if the user asks.
 
 ### Workspace hygiene
 

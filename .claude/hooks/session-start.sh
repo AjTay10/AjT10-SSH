@@ -48,16 +48,21 @@ ok_list="$(timeout 60 "$AR_VENV/bin/agent-reach" doctor --json 2>/dev/null \
   | jq -r '[to_entries[] | select(.value.status == "ok") | .key
             | select(. != "web")] + ["exa"] | join(", ")' 2>/dev/null)"
 
-echo "${version} is installed and on PATH."
-[ -n "$ok_list" ] && echo "Working channels: ${ok_list}"
+echo "${version} is installed and on PATH. agent-reach channels: ${ok_list:-unknown}"
 cat <<'EOF'
-Use these instead of hand-rolled scrapers. Two limits in this container:
-  - Generic web pages: Jina Reader (curl r.jina.ai) is IP-blocked with HTTP
-    401, so use the WebFetch tool. `agent-reach doctor` reports this channel
-    green anyway; do not believe it.
-  - GitHub: the API is scoped to this session's repositories, so `gh search`
+`reach` covers the social platforms and generic web reading: web, search, x,
+reddit, bluesky, mastodon, telegram, tiktok, instagram, facebook, linkedin,
+threads, pinterest, youtube, wikipedia, hn, stackoverflow. Use it instead of
+hand-rolled scrapers, and instead of the agent-reach skill's own commands for
+those platforms — `reach doctor` shows live status for all 17.
+
+Two limits in this container:
+  - Jina Reader (curl r.jina.ai) is IP-blocked with HTTP 401, so `agent-reach
+    doctor` calling its web channel green is wrong. `reach web URL` routes
+    around it.
+  - The GitHub API is scoped to this session's repositories, so `gh search`
     and cross-repo endpoints 403. Prefer the mcp__github__* tools.
-See CLAUDE.md for the full routing table, and run
-./scripts/agent-reach-verify.sh for a live end-to-end check.
+See CLAUDE.md for the routing table, and ./scripts/agent-reach-verify.sh for a
+live end-to-end check.
 EOF
 exit 0

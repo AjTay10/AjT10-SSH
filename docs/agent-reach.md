@@ -22,10 +22,64 @@ reproduce the above.
 | File | Role |
 |------|------|
 | `scripts/install-agent-reach.sh` | idempotent, locked, checksum-verifying installer |
+| `scripts/reach.py` | the platform coverage layer (see below); installed as `reach` |
 | `scripts/agent-reach-verify.sh` | live end-to-end channel checks (real network calls) |
 | `.claude/hooks/session-start.sh` | installs on first run, self-heals, reports honest status |
 | `.claude/settings.json` | registers the hook, pre-allows the read-only CLI commands |
+| `.claude/skills/reach/SKILL.md` | tells Claude which command serves which platform |
 | `CLAUDE.md` | routing table + the environment limits Claude must know |
+
+## The `reach` layer — coverage for the major platforms
+
+Agent Reach alone reaches 5 channels here. Its routing assumes a desktop Chrome
+session (OpenCLI) or an unblocked residential IP, and neither exists in this
+container, so the platforms most people actually mean by "social media" were all
+dark. `scripts/reach.py` closes that gap by implementing, per platform, the access
+path that was **measured** to work, with an explicit fallback chain.
+
+| Platform | Primary backend | Fallback | Content |
+|----------|-----------------|----------|---------|
+| any web page | direct fetch + HTML→text | Exa fetch → Jina | full |
+| web search | Exa `web_search_exa` | — | full |
+| X / Twitter | `cdn.syndication.twimg.com` tweet-result | oEmbed → Exa | full post |
+| Reddit | Exa index (search) | reworded query | thread text |
+| Bluesky | `api.bsky.app` XRPC | — | full |
+| Mastodon | instance public API | web reader | full |
+| Telegram | `t.me/s/<channel>` preview | — | full |
+| TikTok | oEmbed | Exa | title/author |
+| YouTube | yt-dlp | Exa | full metadata |
+| Facebook | yt-dlp (public video) | Exa | video metadata |
+| Instagram | Exa | — | search index |
+| LinkedIn | Exa fetch | Exa search | public profile/company |
+| Threads | direct fetch | Exa | partial |
+| Pinterest | Exa | — | search index |
+| Wikipedia | MediaWiki API | — | full |
+| Hacker News | Algolia API | — | full |
+| Stack Overflow | StackExchange API | — | full |
+
+`reach doctor` probes all 17 live in ~30s — **17/17 reachable**. It is the only
+status command in this repo that is true by construction, because every probe
+fetches real content and asserts it is non-empty.
+
+### Access paths that do NOT work here (measured, not assumed)
+
+Documented so nobody re-litigates them:
+
+- **Reddit direct** — `www.reddit.com/*.json` 403, `old.reddit.com` 403,
+  `.rss` 429, `/oembed` 404. Every public redlib/teddit mirror tried
+  (`redlib.catsarch.com`, `redlib.freedit.eu`, `rl.bloat.cat`,
+  `redlib.privacyredirect.com`, `safereddit.com`, `eu.safereddit.com`,
+  `teddit.net`) returned 403, 503, a Cloudflare interstitial, or a TLS error.
+  Exa's *fetcher* is blocked too; only Exa's cached index gets through.
+- **TikTok via yt-dlp** — `Your IP address is blocked from accessing this post`.
+  oEmbed is unaffected.
+- **Instagram via yt-dlp** — `Instagram sent an empty media response`, i.e. a
+  login wall. The deprecated `api.instagram.com/oembed` returns 429.
+- **Bluesky `searchPosts` on `public.api.bsky.app`** — 403. The same call on
+  `api.bsky.app` works; the host matters.
+- **X with a placeholder syndication token** — old post ids are served with any
+  token, but modern ids 404 unless the token is the real derived value (see
+  finding #11).
 
 ## Channel status (verified live, not from `doctor`)
 
@@ -137,9 +191,58 @@ https://github.com/Panniantong/agent-reach/archive/main.zip`. That URL returns *
 through this container's egress proxy, while `git+https://…agent-reach.git` clones
 fine. The installer tries git first and falls back to the zip.
 
+### 8. `reach` render crashed on Telegram output — FIXED
+
+`render()` called `item.get()` before its `isinstance(item, str)` guard, so every
+Telegram result raised `AttributeError: 'str' object has no attribute 'get'`. The
+guard now comes first. Telegram was the only platform returning a list of strings
+rather than dicts, which is exactly why it slipped through the doctor probe — the
+probe checked the return value, not the rendering.
+
+### 9. `reach doctor` reported working platforms as EMPTY — FIXED
+
+The probe called any result under 40 serialised chars empty. The canonical X probe
+is Jack Dorsey's `"just setting up my twttr"` (24 chars) and the Facebook probe's
+description is 31 chars, so both healthy backends were reported broken. Threshold
+dropped to 5 chars. A status check that cries wolf is worse than no status check.
+
+### 10. Reddit fallback presented a block page as the thread — FIXED
+
+For URLs Exa had only cached Reddit's *"You've been blocked by network security"*
+page for, `reach reddit` returned that text as if it were the discussion. Now every
+result block is screened, blocked ones are dropped, a reworded `site:reddit.com`
+query is retried, and if only non-Reddit sources survive the output is prefixed with
+an explicit `[note: … these are OTHER sites, not Reddit]` banner. Handing an agent a
+block page as "what Reddit said" is a correctness bug, not a cosmetic one.
+
+### 11. X returned 404 for every modern post — FIXED
+
+The syndication endpoint needs a `token` query parameter. A placeholder works for
+old ids (the 2006 test post) but modern ids 404, which made the backend look healthy
+in the probe while failing on every real URL. `_x_token()` now reproduces the value
+X's own embed script derives — `((id / 1e15) * π)` in base 36 with zeros and the
+decimal point stripped — and falls back to the placeholder. Verified: post
+`1587498907336118274` resolves with the derived token and 404s without it.
+
+Deleted and restricted posts return HTTP 200 carrying a `TweetTombstone` rather than
+an error, which produced a result with every field null. Those now raise with the
+platform's own explanation ("This Post is unavailable").
+
 ## Security checks (all passed)
 
-- **SSRF**: `normalize_public_http_url()` was fuzzed with 19 hostile inputs — `file://`,
+- **SSRF in `reach`**: `reach` accepts URLs, so it re-implements the same guard
+  rather than trusting callers. `_validate_url()` rejects non-http(s) schemes,
+  embedded credentials, `localhost`/`.internal`/`.local`, and — after resolving the
+  host — any private, loopback, link-local, reserved, multicast or unspecified
+  address. All 10 hostile URLs replayed against `reach web` (`file:///etc/passwd`,
+  `127.0.0.1:22`, `169.254.169.254`, `[::1]`, `0x7f000001`,
+  `metadata.google.internal`, `user:pass@`, `javascript:`, RFC1918) were rejected
+  with exit 5.
+- **Command injection**: `reach` shells out to `mcporter` and `yt-dlp`. Both use
+  `subprocess.run` with an argument list and never a shell, verified with a canary
+  file against `"; rm -f …`, `$(rm -f …)` and backtick payloads passed as search
+  queries — the canary survived all three.
+- **SSRF in agent-reach**: `normalize_public_http_url()` was fuzzed with 19 hostile inputs — `file://`,
   `gopher://`, `javascript:`, `localhost`, `127.0.0.1`, `[::1]`, RFC1918 ranges,
   `0.0.0.0`, the `169.254.169.254` cloud-metadata address,
   `metadata.google.internal`, decimal (`2130706433`) and hex (`0x7f000001`) encodings
@@ -171,6 +274,11 @@ fine. The installer tries git first and falls back to the zip.
 | Verify script without `jq` | exit 2 with a clear message |
 | SessionStart hook, warm path | 5s, writes PATH into `$CLAUDE_ENV_FILE` |
 | SessionStart hook when the installer fails | prints the log path, exits 0, never blocks the session |
+| `reach --json` on all 12 content commands + doctor | every one emits valid JSON |
+| `reach` with a dead proxy | falls through to Exa and still returns the page |
+| `reach` with the whole network and Exa gone | exit 5, listing every backend it tried |
+| `reach` unicode/emoji queries, 3 KB query | handled; the 3 KB query surfaces the API's own limit message |
+| `reach` on missing channels/handles/posts | exit 5 with the platform's own reason ("Profile not found") |
 
 ## Enabling the credentialed channels
 

@@ -27,7 +27,7 @@ ok()   { printf '  \033[32mPASS\033[0m  %-12s %s\n' "$1" "${2:-}"; pass=$((pass+
 bad()  { printf '  \033[31mFAIL\033[0m  %-12s %s\n' "$1" "${2:-}"; fail=$((fail+1)); FAILED+=("$1"); }
 warn() { printf '  \033[33mDEGR\033[0m  %-12s %s\n' "$1" "${2:-}"; degraded=$((degraded+1)); DEGRADED+=("$1"); }
 
-ALL_CHECKS=(cli doctor web rss v2ex youtube github exa bilibili skill)
+ALL_CHECKS=(cli doctor web rss v2ex youtube github exa bilibili skill platforms)
 
 want() {  # want <name> -> 0 if this check should run
   local n="$1"
@@ -112,7 +112,7 @@ if want web; then
         warn web "HTTP 200 but content looks wrong: $(printf '%s' "$body" | head -c 80)"
       fi ;;
     401|403|429)
-      warn web "Jina Reader HTTP $code from this egress IP — use the WebFetch tool instead" ;;
+      warn web "Jina Reader HTTP $code from this egress IP — routed around by \`reach web\`" ;;
     *)
       bad web "Jina Reader HTTP ${code:-<none>}" ;;
   esac
@@ -195,6 +195,32 @@ if want bilibili; then
   fi
 fi
 
+# ------------------------------------------------------------------ platforms
+# `reach doctor` probes all 17 social/web platforms live. Treat a majority as
+# the pass bar: individual platforms degrade (a login wall appears, a cached
+# page expires) without the integration being broken, but a collapse means the
+# egress IP or a shared backend died.
+if want platforms; then
+  if ! command -v reach >/dev/null 2>&1; then
+    bad platforms "reach not on PATH — run ./scripts/install-agent-reach.sh"
+  else
+    out="$(timeout 300 reach doctor --json 2>/dev/null)"
+    n_ok="$(printf '%s' "$out" | jq -r '.ok // 0' 2>/dev/null)"
+    n_all="$(printf '%s' "$out" | jq -r '.total // 0' 2>/dev/null)"
+    down="$(printf '%s' "$out" | jq -r '[.results | to_entries[]
+             | select(.value.status != "ok") | .key] | join(", ")' 2>/dev/null)"
+    if [ "${n_all:-0}" -eq 0 ] 2>/dev/null; then
+      bad platforms "reach doctor produced no usable report"
+    elif [ "$n_ok" -eq "$n_all" ]; then
+      ok platforms "$n_ok/$n_all platforms reachable"
+    elif [ "$n_ok" -ge $(( (n_all * 2 + 2) / 3 )) ] 2>/dev/null; then
+      warn platforms "$n_ok/$n_all reachable — down: ${down:-unknown}"
+    else
+      bad platforms "only $n_ok/$n_all reachable — down: ${down:-unknown}"
+    fi
+  fi
+fi
+
 # ---------------------------------------------------------------------- skill
 if want skill; then
   s="$HOME/.claude/skills/agent-reach/SKILL.md"
@@ -206,7 +232,12 @@ if want skill; then
     bad skill "SKILL.md frontmatter has no matching name"
   else
     refs="$(find "$HOME/.claude/skills/agent-reach/references" -name '*.md' 2>/dev/null | wc -l)"
-    ok skill "registered with $refs reference docs"
+    proj="$(dirname "$0")/../.claude/skills/reach/SKILL.md"
+    if [ ! -f "$proj" ]; then
+      bad skill "project skill .claude/skills/reach/SKILL.md is missing"
+    else
+      ok skill "agent-reach ($refs refs) + reach both registered"
+    fi
   fi
 fi
 
