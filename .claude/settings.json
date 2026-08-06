@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(agent-reach:*)",
+      "Bash(yt-dlp:*)",
+      "Bash(bili:*)",
+      "Bash(mcporter call:*)",
+      "Bash(mcporter list:*)",
+      "Bash(gh api:*)",
+      "Bash(gh search:*)",
+      "Bash(gh repo view:*)"
+    ]
+  }
+}
