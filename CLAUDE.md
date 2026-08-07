@@ -48,10 +48,12 @@ web page.** `reach doctor` probes all 17 live in ~30s.
 
 ### Two environment limitations — read before trusting `doctor`
 
-1. **Jina Reader is blocked from this container's IP.** `curl https://r.jina.ai/URL`
-   returns HTTP 401 `AuthenticationRequiredError: ... bad IP reputation`, and
-   `agent-reach doctor` still reports the web channel green because
-   `WebChannel.check()` deliberately never touches the network. **Use `reach web URL`**
+1. **Jina Reader is unreliable from this container's IP — treat it as unavailable.**
+   It returned HTTP 401 `AuthenticationRequiredError: ... bad IP reputation` for the
+   whole of the build, then started answering 200 again; it is reputation-based and
+   can flip back without warning. Either way `agent-reach doctor` reports the web
+   channel green unconditionally, because `WebChannel.check()` deliberately never
+   touches the network — so its green tells you nothing. **Use `reach web URL`**
    (direct fetch → Exa → Jina) or Claude Code's `WebFetch` tool. Anything in the
    agent-reach skill's `references/web.md` that says `curl r.jina.ai` does not work
    here. Same for V2EX *search*, which proxies through Jina; the V2EX topic/node APIs

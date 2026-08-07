@@ -102,6 +102,14 @@ degraded (web), 0 failed**.
 Bugs found by adversarial testing, in severity order. Findings 1–4 are in the
 integration or the environment; 5–7 are upstream defects.
 
+> **Update after the build:** Jina Reader began answering HTTP 200 from this IP again
+> (6/6 consecutive probes). The block is reputation-based and flips, so the finding
+> below stands as written for the period it was measured, and the architecture — never
+> depend on Jina, always have a fallback — is the right one regardless. What does *not*
+> change is that `agent-reach doctor` calls the channel green without testing it, so its
+> verdict is uninformative in both directions. `scripts/agent-reach-verify.sh` grades
+> this channel degraded-not-failed for exactly this reason.
+
 ### 1. `doctor` reports the web channel green while it is hard-blocked — FIXED (worked around)
 
 `curl https://r.jina.ai/https://example.com` returns:
