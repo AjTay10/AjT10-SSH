@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# Block a commit that would put a credential into git history.
+#
+# History is the point: once a key is committed, deleting it in a later commit
+# does not remove it from the pack file. Catching it here is the only cheap fix.
+#
+# Enable (once per clone):  git config core.hooksPath .githooks
+# Bypass in an emergency:   git commit --no-verify
+
+set -uo pipefail
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks not installed — skipping secret scan." >&2
+  echo "            install it with ./scripts/install-security.sh" >&2
+  exit 0
+fi
+
+# --staged scans what is about to be committed, not the whole history, so the
+# hook stays fast enough to leave enabled.
+if ! gitleaks protect --staged --no-banner --redact --exit-code 1; then
+  cat >&2 <<'EOF'
+
+pre-commit: BLOCKED — a staged change looks like a credential.
+
+If it is real:    remove it, and rotate the credential; it may already be
+                  in a shell history or an editor swap file.
+If it is a false positive: add a narrow rule to .gitleaks.toml, or commit
+                  once with `git commit --no-verify` and explain why.
+EOF
+  exit 1
+fi
+exit 0
