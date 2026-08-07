@@ -95,7 +95,9 @@ if the user asks.
 [Hermes Agent](https://github.com/NousResearch/hermes-agent) v0.20.0 is installed
 (`/usr/local/bin/hermes`, state in `~/.hermes/`). It is a separate agent runtime that
 outlives this session. See `.claude/skills/hermes/SKILL.md`; `docs/hermes.md` has the
-install record and QA report.
+install record and QA report, and `docs/hermes-vs-openclaw.md` compares it against
+OpenClaw on measured numbers (OpenClaw is installed but parked — no gateway, no
+channels, no credentials, not registered with Claude Code).
 
 | Need | Use |
 |------|-----|
