@@ -38,6 +38,24 @@ fi
 
 version="$("$AR_VENV/bin/agent-reach" --version 2>/dev/null || echo 'unknown')"
 
+# Hermes Agent: installed separately because it is a ~90s install and a
+# different upstream. Wire-only when the binary is already there, so a warm
+# container pays only the skill/perms check.
+hermes_line=""
+if command -v hermes >/dev/null 2>&1; then
+  bash "$PROJECT_DIR/scripts/install-hermes.sh" --wire-only >/tmp/hermes-wire.log 2>&1 || true
+  hv="$(hermes --version 2>/dev/null)"; hv="${hv%%$'\n'*}"
+  if grep -qE '^\s*[A-Z_]*(ANTHROPIC|OPENAI|OPENROUTER|NOUS)[A-Z_]*=.+' "$HOME/.hermes/.env" 2>/dev/null; then
+    hermes_line="${hv} is installed; its MCP messaging tools are registered in .mcp.json."
+  else
+    hermes_line="${hv} is installed (MCP bridge, skills, cron, memory all work). Its own
+agent loop needs a model provider — the user runs \`hermes setup --portal\`. Do not
+run bare \`hermes\` or \`hermes -z\` until then."
+  fi
+elif [ -f "$PROJECT_DIR/scripts/install-hermes.sh" ]; then
+  hermes_line="Hermes Agent is not installed — run ./scripts/install-hermes.sh (~90s)."
+fi
+
 # `agent-reach doctor` is a config check, not a reachability check, and it is
 # wrong in both directions in this container: it calls `web` green even though
 # Jina Reader 401s on our egress IP, and it will not call `exa` green because
@@ -65,4 +83,5 @@ Two limits in this container:
 See CLAUDE.md for the routing table, and ./scripts/agent-reach-verify.sh for a
 live end-to-end check.
 EOF
+[ -n "$hermes_line" ] && { echo; echo "$hermes_line"; }
 exit 0

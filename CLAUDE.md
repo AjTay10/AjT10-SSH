@@ -90,6 +90,34 @@ export, a Groq key, or a desktop Chrome session. Do **not** try to log into any
 platform or read a user's browser cookies. `docs/agent-reach.md` has the enable steps
 if the user asks.
 
+## Persistence, scheduling and messaging: Hermes Agent
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) v0.20.0 is installed
+(`/usr/local/bin/hermes`, state in `~/.hermes/`). It is a separate agent runtime that
+outlives this session. See `.claude/skills/hermes/SKILL.md`; `docs/hermes.md` has the
+install record and QA report.
+
+| Need | Use |
+|------|-----|
+| Read/send messages on Telegram, Discord, Slack, WhatsApp, Signal, Matrix | the `mcp__hermes__*` tools (registered via `.mcp.json`) |
+| Work that must run with no session open | `hermes cron add ...` |
+| Memory that outlives the session | `hermes memories ...`, `~/.hermes/SOUL.md` |
+| A 70-skill library | `hermes skills list` / `search` / `install` |
+| Move a skill between the two runtimes | `./scripts/hermes-sync-skills.sh --list` |
+| Integration health | `./scripts/hermes-verify.sh` |
+
+Two things to remember:
+
+- **Hermes's own agent loop needs a model provider that is not configured.** The MCP
+  bridge, skills, cron and memory all work without one. Do not run bare `hermes` or
+  `hermes -z "..."` expecting output — check `hermes status` first. To enable it the
+  *user* runs `hermes setup --portal` (or `hermes setup` for their own key); never
+  handle their key yourself, and never read or write `~/.hermes/.env`.
+- **Hermes's built-in `web` toolset is dead here** — it wants `EXA_API_KEY`,
+  `TAVILY_API_KEY` or `FIRECRAWL_API_KEY`, and `x_search` wants `XAI_API_KEY`. The
+  `reach-social` skill in `~/.hermes/skills/social-media/` points Hermes at the keyless
+  `reach` CLI instead, so it has the same 17-platform coverage described above.
+
 ### Workspace hygiene
 
 Agent Reach state lives in `~/.agent-reach/`, its venv in `~/.agent-reach-venv/`, and
