@@ -104,7 +104,7 @@ channels, no credentials, not registered with Claude Code).
 | Read/send messages on Telegram, Discord, Slack, WhatsApp, Signal, Matrix | the `mcp__hermes__*` tools (registered via `.mcp.json`) |
 | Work that must run with no session open | `hermes cron add ...` |
 | Memory that outlives the session | `hermes memories ...`, `~/.hermes/SOUL.md` |
-| A 70-skill library | `hermes skills list` / `search` / `install` |
+| A 71-skill library (53 ready) | `hermes skills list`; `./scripts/hermes-skills-audit.py` for what actually runs |
 | Move a skill between the two runtimes | `./scripts/hermes-sync-skills.sh --list` |
 | Integration health | `./scripts/hermes-verify.sh` |
 

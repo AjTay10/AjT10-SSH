@@ -123,7 +123,65 @@ if ! have reach; then
   log "WARNING: the reach CLI is not on PATH — run ./scripts/install-agent-reach.sh"
 fi
 
-# ------------------------------------------------------ 3. MCP registration
+# ------------------------------------------------- 3. skill prerequisites
+# Hermes registers all 71 bundled skills as "enabled" regardless of whether
+# their dependencies exist, so a skill fails on first import rather than at
+# install time. These are every prerequisite that can be satisfied here without
+# a user credential; ./scripts/hermes-skills-audit.py reports what is left.
+# Installed into the system python3 on purpose — that is the interpreter a
+# skill's `python script.py` actually runs, not any venv.
+step "Skill prerequisites"
+PY_PKGS="pyfiglet youtube-transcript-api defusedxml openpyxl pandas pypdf
+         pdfplumber reportlab pdf2image pytesseract pymupdf pymupdf4llm
+         python-docx python-pptx debugpy remote-pdb websocket-client nano-pdf
+         semanticscholar arxiv habanero scipy numpy matplotlib SciencePlots
+         pygount"
+missing=""
+for p in $PY_PKGS; do
+  python3 -c "import importlib.metadata as m; m.distribution('$p')" 2>/dev/null || missing="$missing $p"
+done
+if [ -n "$missing" ]; then
+  log "installing:$(echo "$missing" | tr '\n' ' ')"
+  # --ignore-installed: the base image ships a Debian-managed `packaging` with
+  # no RECORD file, which makes pip abort trying to uninstall it.
+  # Status is captured directly: piping into `grep -v` under `set -o pipefail`
+  # reports failure whenever grep filters every line away, which turned a
+  # successful install into a spurious warning.
+  if python3 -m pip install -q --ignore-installed $missing >/tmp/hermes-pip.log 2>&1; then
+    log "installed $(echo "$missing" | wc -w) package(s)"
+  else
+    log "WARNING: some Python prerequisites failed — see /tmp/hermes-pip.log,"
+    log "         then re-check with ./scripts/hermes-skills-audit.py"
+  fi
+else
+  log "Python prerequisites already present"
+fi
+
+# pytesseract and pdf2image are thin wrappers; without these binaries they
+# import fine and then fail at call time.
+for pair in "tesseract:tesseract-ocr" "pdftoppm:poppler-utils"; do
+  bin="${pair%%:*}"; pkg="${pair##*:}"
+  if ! have "$bin"; then
+    log "installing $pkg (provides $bin)"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$pkg" >/dev/null 2>&1 \
+      || log "WARNING: could not install $pkg; OCR/PDF rasterising will not work"
+  fi
+done
+
+# blogwatcher-cli (RSS/blog monitoring) needs no account, so it is worth having.
+if ! have blogwatcher-cli; then
+  log "installing blogwatcher-cli"
+  curl -sL "https://github.com/JulienTant/blogwatcher-cli/releases/latest/download/blogwatcher-cli_linux_amd64.tar.gz" \
+    | tar xz -C "$HOME/.local/bin" blogwatcher-cli 2>/dev/null || log "WARNING: blogwatcher-cli install failed"
+fi
+if ! have songsee && have go; then
+  log "installing songsee (audio spectrograms)"
+  GOBIN="$HOME/.local/bin" go install github.com/steipete/songsee/cmd/songsee@latest >/dev/null 2>&1 \
+    || log "WARNING: songsee install failed"
+fi
+log "readiness: $("$REPO_DIR/scripts/hermes-skills-audit.py" --json 2>/dev/null | jq -r '"\(.counts.READY // 0)/\(.total) skills ready"' 2>/dev/null || echo 'run ./scripts/hermes-skills-audit.py')"
+
+# ------------------------------------------------------ 4. MCP registration
 step "Claude Code MCP registration"
 if [ -f "$REPO_DIR/.mcp.json" ] && grep -q '"hermes"' "$REPO_DIR/.mcp.json"; then
   log "hermes present in .mcp.json"

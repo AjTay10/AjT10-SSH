@@ -33,6 +33,7 @@ its own state. The integration is worth having for three things:
 | `scripts/install-hermes.sh` | idempotent, locked installer + wiring; `--check`, `--wire-only` |
 | `scripts/hermes-verify.sh` | live integration checks, including a real MCP handshake |
 | `scripts/hermes-sync-skills.sh` | moves a `SKILL.md` between Hermes and Claude Code |
+| `scripts/hermes-skills-audit.py` | what each of the 71 skills actually needs to run |
 | `integrations/hermes/skills/.../reach-social/SKILL.md` | source of truth for the skill installed into Hermes |
 | `.claude/skills/hermes/SKILL.md` | tells Claude when to reach for Hermes |
 | `.mcp.json` | registers the messaging bridge |
@@ -65,6 +66,58 @@ skill list and change which skill wins a trigger.
 The `reach-social` skill routes it to the keyless `reach` CLI instead, giving Hermes the
 same 17-platform coverage as the Claude session. Its own social-media category
 otherwise contains exactly one skill (`xurl`), which needs X API credentials.
+
+## Skill readiness — 53 of 71 usable
+
+Hermes registers all 71 bundled skills as `enabled` whether or not their
+dependencies exist, so `hermes skills list` cannot tell you what actually runs.
+`./scripts/hermes-skills-audit.py` answers that, and the installer now satisfies
+everything that can be satisfied without a credential.
+
+| Bucket | Count | Meaning |
+|--------|-------|---------|
+| **READY** | **53** | every prerequisite present |
+| NEEDS-CRED | 4 | an API key only the user has |
+| NEEDS-BIN | 8 | blocked on an account, hardware, or a build failure |
+| NEEDS-GPU | 2 | wants a multi-GB ML stack |
+| INCOMPATIBLE | 4 | macOS-only (`imessage`, `findmy`, `apple-notes`, `apple-reminders`) |
+
+Installed to get there — into the **system `python3`**, because that is the
+interpreter a skill's own `python script.py` runs, not any venv:
+
+- documents: `pypdf`, `pdfplumber`, `reportlab`, `pymupdf`, `pymupdf4llm`,
+  `python-docx`, `python-pptx`, `openpyxl`, `pandas`, `defusedxml`, `nano-pdf`
+- OCR/raster: `pytesseract`, `pdf2image` + the `tesseract-ocr` and
+  `poppler-utils` binaries they shell out to
+- research: `semanticscholar`, `arxiv`, `habanero`, `scipy`, `numpy`,
+  `matplotlib`, `SciencePlots`
+- misc: `pyfiglet`, `youtube-transcript-api`, `debugpy`, `remote-pdb`,
+  `websocket-client`, `pygount`, `blogwatcher-cli`, `songsee`
+
+Verified functionally, not just by import: generate a PDF with reportlab → read
+it back with pypdf → rasterise with pdf2image → OCR with pytesseract returns the
+original string.
+
+### What is still blocked, and why
+
+| Skill | Blocker | Who can unblock it |
+|-------|---------|--------------------|
+| `notion`, `airtable`, `gif-search` | `NOTION_API_KEY`, `AIRTABLE_API_KEY`, `TENOR_API_KEY` | user (free keys) |
+| `teams-meeting-pipeline` | `MSGRAPH_*` tenant/client/secret | user (Azure app registration) |
+| `himalaya` | an IMAP/SMTP account | user — binary install is trivial once wanted |
+| `xurl` | X API credentials | user — but `reach x` already reads X without them |
+| `weights-and-biases` | a W&B account | user |
+| `openhue` | a Philips Hue **bridge on the LAN** | nobody — no credential fixes a headless container |
+| `comfyui`, `serving-llms-vllm`, `llama-cpp`, `evaluating-llms-harness` | GPU + multi-GB torch/vLLM stacks | needs different hardware |
+| `ocr-and-documents` (partial) | only the optional `marker-pdf` ML path | the rest of the skill works |
+| `manim-video` | `srt` wheel fails to build here | upstream packaging |
+| 4 Apple skills | macOS-only APIs | needs a Mac |
+
+Nothing above was papered over by installing a binary whose account is still
+missing — that would flip the audit to READY while leaving the skill unusable.
+
+`hermes-verify.sh` now fails if readiness drops below 53, so a container rebuild
+that silently loses these packages is caught rather than discovered mid-task.
 
 ## The one thing that needs the user
 

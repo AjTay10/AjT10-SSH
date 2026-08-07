@@ -19,8 +19,11 @@ export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 TIMEOUT="${HERMES_VERIFY_TIMEOUT:-180}"
+# Every skill that can be made ready on this host has been. Dropping below this
+# means dependencies were lost, not that upstream shipped a new skill.
+SKILLS_READY_FLOOR="${SKILLS_READY_FLOOR:-53}"
 
-ALL_CHECKS=(cli doctor mcp skill reach-skill mcpconfig perms claudeskill)
+ALL_CHECKS=(cli doctor mcp skill reach-skill skills-ready mcpconfig perms claudeskill)
 
 pass=0; fail=0; degraded=0
 declare -a FAILED=() DEGRADED=()
@@ -140,6 +143,30 @@ if want skill; then
     ok skill "reach-social discovered among $n skills"
   else
     bad skill "reach-social is on disk but not discovered by hermes"
+  fi
+fi
+
+# ------------------------------------------------------------- skills-ready
+# Guards against silent regression: a container rebuild that loses the pip
+# packages would leave the skills registered and enabled but broken on first
+# import, which is exactly the failure `hermes skills list` cannot see.
+if want skills-ready; then
+  audit="$REPO_DIR/scripts/hermes-skills-audit.py"
+  if [ ! -x "$audit" ]; then
+    bad skills-ready "scripts/hermes-skills-audit.py missing"
+  else
+    j="$(timeout "$TIMEOUT" "$audit" --json 2>/dev/null)"
+    ready="$(printf '%s' "$j" | jq -r '.counts.READY // 0' 2>/dev/null)"
+    total="$(printf '%s' "$j" | jq -r '.total // 0' 2>/dev/null)"
+    if [ "${total:-0}" -eq 0 ] 2>/dev/null; then
+      bad skills-ready "audit produced no report"
+    elif [ "$ready" -lt "$SKILLS_READY_FLOOR" ] 2>/dev/null; then
+      bad skills-ready "$ready/$total ready — expected at least $SKILLS_READY_FLOOR (dependencies lost?)"
+    else
+      blocked="$(printf '%s' "$j" | jq -r '[.counts | to_entries[]
+                  | select(.key != "READY") | "\(.value) \(.key)"] | join(", ")' 2>/dev/null)"
+      ok skills-ready "$ready/$total ready (${blocked:-none blocked})"
+    fi
   fi
 fi
 
