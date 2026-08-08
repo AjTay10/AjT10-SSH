@@ -58,6 +58,9 @@ jobs:
           print("tools/ is stdlib-only")
           PY
 
+      - name: Demo report is not stale
+        run: python3 demo/build.py --check
+
       - name: Installer is safe to run twice
         run: |
           export CLAUDE_HOME="$RUNNER_TEMP/claude"

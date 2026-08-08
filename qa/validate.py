@@ -194,7 +194,8 @@ def check_python():
     tools = os.path.join(ROOT, "tools")
     qa = os.path.join(ROOT, "qa")
     seen = 0
-    for base in (tools, qa, os.path.join(ROOT, ".claude", "hooks")):
+    for base in (tools, qa, os.path.join(ROOT, "demo"),
+                 os.path.join(ROOT, ".claude", "hooks")):
         if not os.path.isdir(base):
             continue
         for fn in sorted(os.listdir(base)):
@@ -284,6 +285,48 @@ def check_commands():
                 err(rel(p), f"references missing {m.group(1)}")
 
 
+def check_documented_counts(skill_count):
+    """The README and CLAUDE.md advertise counts. Keep them true.
+
+    Documented numbers rot the moment someone adds a skill, and a README that
+    undercounts is the first thing a reader notices and the last thing anyone
+    remembers to update.
+    """
+    tools = len([f for f in os.listdir(os.path.join(ROOT, "tools"))
+                 if f.endswith(".py")]) if os.path.isdir(
+                     os.path.join(ROOT, "tools")) else 0
+
+    tests = 0
+    st = os.path.join(ROOT, "qa", "selftest.py")
+    if os.path.isfile(st):
+        tests = len(re.findall(r"^def t_\w+\(", open(st, encoding="utf-8").read(),
+                               re.M))
+
+    actual = {"skill": skill_count, "tool": tools, "test": tests}
+    for fn in ("README.md", "CLAUDE.md"):
+        p = os.path.join(ROOT, fn)
+        if not os.path.isfile(p):
+            continue
+        text = open(p, encoding="utf-8").read()
+        for noun, real in actual.items():
+            if not real:
+                continue
+            # (?<!\w) keeps "python3 tools/..." from reading as "3 tools", and
+            # (?!/) keeps a path segment from being mistaken for a count.
+            # One optional adjective is allowed between number and noun, so
+            # "105 adversarial tests" is checked as well as "105-test".
+            pattern = (r"(?<!\w)(\d+)[-\s*]{0,3}(?:[a-z]+[-\s]){0,2}"
+                       + noun + r"s?\b(?!/)")
+            for m in re.finditer(pattern, text):
+                claimed = int(m.group(1))
+                # Only judge claims in the same ballpark — "3 platforms" or
+                # "5 tools you might add" are not counts of this repo.
+                if claimed != real and abs(claimed - real) <= max(12, real // 2):
+                    err(fn, f"claims {claimed} {noun}s but the repo has {real} "
+                            f"— update the text or the code")
+                    break            # one report per noun per file is enough
+
+
 def check_executable():
     for base in ("tools", "qa"):
         d = os.path.join(ROOT, base)
@@ -309,6 +352,7 @@ def main(argv=None):
     check_json()
     check_settings()
     check_commands()
+    check_documented_counts(len(names))
     check_executable()
     notes.append(f"{len(names)} skill(s) validated")
 

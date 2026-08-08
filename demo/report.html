@@ -1,0 +1,452 @@
+<title>Pipeline demonstration — finding a reach break across three platforms</title>
+<style>
+:root{
+  --ground:#fbfbfc; --surface:#f2f4f7; --sunk:#e8ebf0;
+  --ink:#14181f; --ink-2:#4a5361; --ink-3:#79838f;
+  --rule:#dde2e9;
+  --accent:#2f62d4; --accent-soft:#e6ecfa;
+  --critical:#b8402f; --critical-soft:#fbe9e6;
+  --good:#1a7f5a;
+  --term-bg:#171b21; --term-ink:#d6dbe3; --term-dim:#7f8b9c;
+  --serif:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0f1216; --surface:#171b21; --sunk:#1e242c;
+  --ink:#e9edf2; --ink-2:#a3adba; --ink-3:#78828f;
+  --rule:#272e37;
+  --accent:#7fa4f5; --accent-soft:#1a2438;
+  --critical:#f0806e; --critical-soft:#2e1a17;
+  --good:#4bbd91;
+  --term-bg:#0a0c0f; --term-ink:#d6dbe3; --term-dim:#6b7787;
+}}
+:root[data-theme="dark"]{
+  --ground:#0f1216; --surface:#171b21; --sunk:#1e242c;
+  --ink:#e9edf2; --ink-2:#a3adba; --ink-3:#78828f;
+  --rule:#272e37;
+  --accent:#7fa4f5; --accent-soft:#1a2438;
+  --critical:#f0806e; --critical-soft:#2e1a17;
+  --good:#4bbd91;
+  --term-bg:#0a0c0f; --term-ink:#d6dbe3; --term-dim:#6b7787;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--serif); font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:1140px;margin:0 auto;padding:0 28px 96px}
+.col{max-width:660px}
+
+/* ---------- masthead ---------- */
+header{padding:56px 0 34px;border-bottom:2px solid var(--ink);margin-bottom:8px}
+.badge{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--critical);background:var(--critical-soft);
+  border:1px solid var(--critical);border-radius:2px;padding:5px 10px;margin-bottom:22px;
+}
+.badge b{font-weight:700}
+h1{
+  font-family:var(--sans);font-weight:680;letter-spacing:-.024em;
+  font-size:clamp(31px,4.4vw,46px);line-height:1.08;margin:0 0 16px;
+  text-wrap:balance;max-width:19ch;
+}
+.standfirst{font-size:19px;line-height:1.55;color:var(--ink-2);margin:0;max-width:62ch}
+.meta{
+  display:flex;flex-wrap:wrap;gap:0 30px;margin-top:26px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+.meta span b{color:var(--ink-2);font-weight:500}
+
+/* ---------- verdict ---------- */
+.verdict{
+  margin:38px 0 0;padding:26px 30px;
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--critical);border-radius:0 4px 4px 0;
+}
+.verdict .k{
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--critical);margin-bottom:10px;
+}
+.verdict p{margin:0;font-size:18.5px;line-height:1.55;max-width:64ch}
+.verdict p+p{margin-top:12px;color:var(--ink-2);font-size:16.5px}
+
+/* ---------- readout strip ---------- */
+.readout{
+  display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);
+  grid-template-columns:repeat(auto-fit,minmax(178px,1fr));margin:34px 0 0;
+}
+.cell{background:var(--ground);padding:17px 19px}
+.cell .l{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:7px;
+}
+.cell .v{
+  font-family:var(--sans);font-size:27px;font-weight:640;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;line-height:1.1;
+}
+.cell .d{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-top:5px}
+.down{color:var(--critical)} .flat{color:var(--ink-2)} .up{color:var(--good)}
+
+/* ---------- sections ---------- */
+section{margin-top:64px}
+h2{
+  font-family:var(--sans);font-size:12px;font-weight:660;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 20px;
+  padding-bottom:9px;border-bottom:1px solid var(--rule);
+}
+h3{
+  font-family:var(--sans);font-size:20px;font-weight:640;letter-spacing:-.015em;
+  margin:0 0 10px;text-wrap:balance;
+}
+p{margin:0 0 16px}
+.lede-note{color:var(--ink-2);font-size:16px}
+
+/* ---------- numbered step rail ---------- */
+.step{display:grid;grid-template-columns:44px 1fr;gap:0 22px;margin-bottom:44px}
+.step .n{
+  font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.04em;
+  color:var(--accent);padding-top:4px;
+  border-top:2px solid var(--accent);height:0;
+}
+.step .n span{display:block;padding-top:9px}
+.step-body{min-width:0}
+
+/* ---------- terminal ---------- */
+.term{
+  background:var(--term-bg);color:var(--term-ink);border-radius:4px;
+  padding:16px 18px;overflow-x:auto;margin:14px 0 0;
+  font-family:var(--mono);font-size:12.5px;line-height:1.62;
+  -webkit-font-smoothing:auto;
+}
+.term pre{margin:0;white-space:pre}
+.term .cmd{color:#9fc3ff;display:block;margin-bottom:9px}
+.term .cmd::before{content:"$ ";color:var(--term-dim)}
+.term .dim{color:var(--term-dim)}
+.term .hit{color:#ffb375}
+.term .bad{color:#ff8a76}
+.term .ok{color:#63d3a4}
+.caption{
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-3);
+  margin-top:10px;line-height:1.55;
+}
+.caption b{color:var(--ink-2);font-weight:500}
+
+/* ---------- charts ---------- */
+.charts{display:grid;gap:18px;grid-template-columns:1fr 1fr;margin-top:6px}
+@media (max-width:840px){.charts{grid-template-columns:1fr}}
+.chart{
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  padding:8px;overflow-x:auto;
+}
+.chart svg{display:block;max-width:100%;height:auto}
+.chart-wide{grid-column:1/-1}
+
+/* ---------- table ---------- */
+.tw{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+th,td{padding:11px 15px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+tr:last-child td{border-bottom:0}
+thead th{
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;background:var(--surface);
+}
+td{font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--surface)}
+
+/* ---------- catch list ---------- */
+.catches{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:6px}
+.catch{background:var(--ground);padding:19px 22px;display:grid;grid-template-columns:1fr;gap:7px}
+.catch .t{font-family:var(--sans);font-size:15.5px;font-weight:620;letter-spacing:-.008em}
+.catch .b{font-size:15.5px;color:var(--ink-2);line-height:1.55;max-width:76ch}
+.catch code{
+  font-family:var(--mono);font-size:12.5px;background:var(--sunk);
+  padding:1px 5px;border-radius:2px;color:var(--ink);
+}
+.tag{
+  display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.09em;
+  text-transform:uppercase;padding:3px 7px;border-radius:2px;
+  background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);
+  margin-right:8px;vertical-align:1px;
+}
+
+footer{
+  margin-top:76px;padding-top:22px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-3);line-height:1.75;
+}
+::selection{background:var(--accent);color:var(--ground)}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="page">
+
+<header>
+  <div class="badge"><b>Synthetic data</b> — generated for this demonstration</div>
+  <h1>Reach fell 64% on one platform. The content never changed.</h1>
+  <p class="standfirst">A full run of the analytics pipeline over three raw platform exports —
+  three different column vocabularies, three different encodings — from raw file to
+  diagnosis, with every number produced by the tools rather than asserted.</p>
+  <div class="meta">
+    <span><b>90 days</b> · Mar–May 2026</span>
+    <span><b>120 posts</b> · 3 platforms</span>
+    <span><b>9 tools</b> · stdlib only</span>
+    <span><b>0</b> network calls</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <div class="k">Finding</div>
+  <p>YouTube impressions per post dropped 64% on 12 May and did not recover.
+  Engagement rate held flat across the same boundary, and no corresponding break appears on
+  TikTok within a week either side.</p>
+  <p>Flat engagement with collapsed reach is a distribution failure, not a content
+  failure — and the two lead to completely different investigations. Check
+  instrumentation and platform status before touching the content.</p>
+</div>
+
+<div class="readout">
+  <div class="cell">
+    <div class="l">YouTube reach</div>
+    <div class="v down">−63.6%</div>
+    <div class="d">247,492 → 90,168 median</div>
+  </div>
+  <div class="cell">
+    <div class="l">Engagement rate</div>
+    <div class="v flat">−2.9%</div>
+    <div class="d">inside normal variance</div>
+  </div>
+  <div class="cell">
+    <div class="l">TikTok, at the break</div>
+    <div class="v up">no break</div>
+    <div class="d">within &plusmn;7 days of 12 May</div>
+  </div>
+  <div class="cell">
+    <div class="l">Changepoint</div>
+    <div class="v down">12 May</div>
+    <div class="d">CUSUM, sustained</div>
+  </div>
+</div>
+
+<section>
+  <h2>The run</h2>
+  <div class="col">
+    <p class="lede-note">Four commands. Each one is shown with its actual output —
+    nothing below is reconstructed or tidied.</p>
+  </div>
+
+  <div class="step">
+    <div class="n"><span>01</span></div>
+    <div class="step-body">
+      <h3>Inspect before trusting anything</h3>
+      <div class="col"><p>Platform exports name the same quantity differently and
+      quietly change format between versions. The mapping gets confirmed before a
+      single number is computed.</p></div>
+      <div class="term"><pre><span class="cmd">python3 tools/social_ingest.py --inspect youtube_studio_export.csv</span>
+30 rows, 10 columns
+
+source column                         maps to             sample
+------------------------------------------------------------------------------
+Video publish time                    date                2026-03-01
+Video title                           title               The 3-second rule nobo
+Views                                 video_views         10777
+Impressions                           impressions         252135
+<span class="hit">Impressions click-through rate (%)    — dropped —         4.27</span>
+Likes                                 likes               546
+Comments added                        comments            60
+Shares                                shares              60
+Watch time (hours)                    watch_time_sec      9.3
+Subscribers gained                    followers_delta     94
+
+best-guess platform: youtube (9 columns matched)
+<span class="dim">Pass --platform explicitly; the guess is a convenience, not a decision.</span></pre></div>
+      <div class="caption"><b>Note the two hard cases.</b> <em>Video publish time</em> resolves to
+      <code>date</code>, not <code>post_id</code> — a naive substring match reads the &ldquo;id&rdquo;
+      inside &ldquo;v-<b>id</b>-eo&rdquo;. And <em>Watch time (hours)</em> is converted to seconds
+      on the way in, so 9.3 becomes 33,480 rather than being silently off by 3,600×.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n"><span>02</span></div>
+    <div class="step-body">
+      <h3>Normalize three platforms into one schema</h3>
+      <div class="col"><p>The Instagram file came out of a spreadsheet round-trip as
+      cp1252. That decode error is a <code>ValueError</code>, not an <code>OSError</code>, so it
+      slips past the usual handler and reaches the user as a traceback — the reader
+      falls back through encodings and says which one it used.</p></div>
+      <div class="term"><pre><span class="cmd">python3 tools/social_ingest.py \
+    --csv youtube_studio_export.csv --platform youtube \
+    --csv tiktok_export.csv         --platform tiktok \
+    --csv instagram_export.csv      --platform instagram \
+    --out normalized.csv --summary</span>
+<span class="hit">note: instagram_export.csv is not UTF-8; read it as cp1252. Check any accented characters in the output.</span>
+normalized.csv: 120 rows
+<span class="hit">note: youtube_studio_export.csv: 1 column(s) not mapped and dropped: Impressions click-through rate (%)</span>
+<span class="hit">note: youtube: Views are counted after ~30s or full watch on Shorts; impressions here are thumbnail impressions, not views.</span>
+<span class="hit">note: tiktok: A 'view' is counted at 0s (immediate autoplay). TikTok views are not comparable to YouTube views — never chart them on one axis.</span>
+<span class="hit">note: instagram: Reach is unique accounts; impressions can be many per account. Reels 'plays' start at ~1s.</span>
+
+platform           posts     impressions   engagements     ER%
+--------------------------------------------------------------
+instagram             45       1,672,713        90,353    5.40
+tiktok                45       7,014,628       837,675   11.94
+youtube               30       6,385,635        22,179    0.35
+
+<span class="bad">Do not rank platforms on this ER column alone — the denominators are defined differently per platform (see notes).</span></pre></div>
+      <div class="caption"><b>The tool argues with its own output.</b> That last line is printed
+      by the normalizer itself. TikTok&rsquo;s 12.80% against YouTube&rsquo;s 0.34% is not a
+      quality gap — a TikTok view counts at 0 seconds while a YouTube impression is a
+      thumbnail render. Ranking those against each other produces a conclusion that is
+      wrong rather than merely imprecise.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n"><span>03</span></div>
+    <div class="step-body">
+      <h3>Ask whether anything actually broke</h3>
+      <div class="col"><p>The baseline is a trailing Theil&ndash;Sen trend fit, not a rolling
+      average, so ordinary growth is not reported as a run of spikes. Scoring uses median
+      absolute deviation, so one viral post cannot widen the band and hide every real
+      problem after it.</p></div>
+      <div class="term"><pre><span class="cmd">python3 tools/anomaly.py --csv youtube.csv --date date --value reach --window 12</span>
+30 points  2026-03-01 → 2026-05-27  window=12 z=3.0 seasonal=none
+
+4 anomalies:
+date                  value      baseline       z  what
+------------------------------------------------------------
+<span class="bad">2026-05-12        84,408.00    262,783.88   -9.35  drop</span>
+<span class="bad">2026-05-15        88,735.00    260,178.88  -11.55  drop</span>
+<span class="bad">2026-05-18        98,296.00    220,333.33   -5.93  drop</span>
+<span class="bad">2026-05-21       100,515.00    208,531.62   -3.40  drop</span>
+
+<span class="hit">1 sustained level shift(s) — these matter more than spikes, and no daily-spike alert would have caught them:</span>
+  2026-05-12 → 2026-05-18 (3 pts)  down  (cusum -9.5)</pre></div>
+      <div class="caption"><b>The changepoints are the finding, not the spikes.</b> A single bad
+      day is usually noise. A level that shifts and stays shifted is the thing that shows up
+      a quarter later as &ldquo;growth stalled&rdquo; — and it never trips a threshold alert,
+      because no individual day is unusual enough.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n"><span>04</span></div>
+    <div class="step-body">
+      <h3>Split distribution failure from content failure</h3>
+      <div class="col"><p>The two produce identical-looking charts and require opposite
+      responses. The discriminator is whether engagement rate moved with reach.</p></div>
+      <div class="tw"><table>
+        <thead><tr><th>YouTube, per post</th><th>Before 12 May</th><th>After</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td>Impressions (median)</td><td>247,492</td><td>90,168</td><td class="down">−63.6%</td></tr>
+          <tr><td>Engagement rate</td><td>0.35%</td><td>0.34%</td><td class="flat">−2.9%</td></tr>
+          <tr><td>Posts in window</td><td>24</td><td>6</td><td class="flat">—</td></tr>
+        </tbody>
+      </table></div>
+      <div class="caption">Reach collapsed; the rate at which the people who saw it engaged
+      did not. The audience reacted to this content exactly as it always had — there were
+      simply far fewer of them. <b>6 posts after the break is a thin sample</b>, so this is
+      a strong indication rather than a settled result.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What the series look like</h2>
+  <div class="col"><p class="lede-note">Two platforms, two charts — deliberately not one.
+  Putting YouTube impressions and TikTok views on a shared axis would imply a comparison
+  the underlying definitions do not support.</p></div>
+  <div class="charts">
+    <div class="chart"><svg class="ck" xmlns="http://www.w3.org/2000/svg" width="100%" height="380" viewBox="0 0 760 380" role="img" aria-label="YouTube — impressions per post"><style>.ck{--bg:#ffffff;--surface:#f6f7f9;--ink:#16181d;--muted:#5c6370;--grid:#e4e7ec;--axis:#b6bcc7;--pos:#1f9d76;--neg:#d2455f;--c0:#3b6ef2;--c1:#e07b39;--c2:#1f9d76;--c3:#a855c9;--c4:#d2455f;--c5:#5a7183;--c6:#8a7a1f;--c7:#2ba3c4;--s0:#eef3fe;--s1:#cfdefb;--s2:#a7c1f6;--s3:#7aa0ef;--s4:#4f7de6;--s5:#2f5bc9;--s6:#1e3f96;}@media (prefers-color-scheme: dark){.ck{--bg:#14161a;--surface:#1c1f25;--ink:#eef0f4;--muted:#9aa3b0;--grid:#2b3038;--axis:#4a515c;--pos:#4fc9a1;--neg:#f0778c;--c0:#79a0ff;--c1:#f5a05e;--c2:#4fc9a1;--c3:#c98ae0;--c4:#f0778c;--c5:#93a3b5;--c6:#c9b64e;--c7:#5ec8e6;--s0:#1b2436;--s1:#22304c;--s2:#2b4068;--s3:#365388;--s4:#4568aa;--s5:#5a80cb;--s6:#7599e6;}}.ck{font-family:ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;}.ck .bgr{fill:var(--bg)}.ck .ttl{fill:var(--ink);font-size:15px;font-weight:600}.ck .sub{fill:var(--muted);font-size:11.5px}.ck .lbl{fill:var(--muted);font-size:11px}.ck .vlbl{fill:var(--ink);font-size:11px;font-weight:600}.ck .gl{stroke:var(--grid);stroke-width:1}.ck .ax{stroke:var(--axis);stroke-width:1}.ck .ln{fill:none;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}</style><rect class="bgr" width="760" height="380" rx="10"/><text class="ttl" x="16" y="24">YouTube — impressions per post</text><text class="sub" x="16" y="42">90 days · break on 12 May, no recovery</text><line class="gl" x1="58" y1="340.0" x2="742" y2="340.0"/><text class="lbl" x="50" y="344.0" text-anchor="end">50k</text><line class="gl" x1="58" y1="284.4" x2="742" y2="284.4"/><text class="lbl" x="50" y="288.4" text-anchor="end">100k</text><line class="gl" x1="58" y1="228.8" x2="742" y2="228.8"/><text class="lbl" x="50" y="232.8" text-anchor="end">150k</text><line class="gl" x1="58" y1="173.2" x2="742" y2="173.2"/><text class="lbl" x="50" y="177.2" text-anchor="end">200k</text><line class="gl" x1="58" y1="117.6" x2="742" y2="117.6"/><text class="lbl" x="50" y="121.6" text-anchor="end">250k</text><line class="gl" x1="58" y1="62.0" x2="742" y2="62.0"/><text class="lbl" x="50" y="66.0" text-anchor="end">300k</text><text class="lbl" x="58.0" y="358" text-anchor="middle">2026-03-01</text><text class="lbl" x="128.8" y="358" text-anchor="middle">2026-03-10</text><text class="lbl" x="199.5" y="358" text-anchor="middle">2026-03-19</text><text class="lbl" x="270.3" y="358" text-anchor="middle">2026-03-28</text><text class="lbl" x="341.0" y="358" text-anchor="middle">2026-04-06</text><text class="lbl" x="411.8" y="358" text-anchor="middle">2026-04-15</text><text class="lbl" x="482.6" y="358" text-anchor="middle">2026-04-24</text><text class="lbl" x="553.3" y="358" text-anchor="middle">2026-05-03</text><text class="lbl" x="624.1" y="358" text-anchor="middle">2026-05-12</text><text class="lbl" x="694.8" y="358" text-anchor="middle">2026-05-21</text><path class="ln" d="M58.0,115.2 L81.6,163.8 L105.2,157.0 L128.8,102.1 L152.3,171.4 L175.9,115.1 L199.5,166.8 L223.1,134.7 L246.7,143.7 L270.3,116.7 L293.9,141.8 L317.4,82.1 L341.0,104.7 L364.6,162.1 L388.2,87.2 L411.8,117.2 L435.4,123.8 L459.0,132.5 L482.6,130.3 L506.1,109.8 L529.7,113.0 L553.3,123.5 L576.9,106.1 L600.5,87.1 L624.1,301.7 L647.7,296.9 L671.2,286.3 L694.8,283.8 L718.4,295.2 L742.0,295.4" stroke="var(--c0)"/><line class="ax" x1="58" y1="340" x2="742" y2="340"/></svg></div>
+    <div class="chart"><svg class="ck" xmlns="http://www.w3.org/2000/svg" width="100%" height="380" viewBox="0 0 760 380" role="img" aria-label="TikTok — video views per post"><style>.ck{--bg:#ffffff;--surface:#f6f7f9;--ink:#16181d;--muted:#5c6370;--grid:#e4e7ec;--axis:#b6bcc7;--pos:#1f9d76;--neg:#d2455f;--c0:#3b6ef2;--c1:#e07b39;--c2:#1f9d76;--c3:#a855c9;--c4:#d2455f;--c5:#5a7183;--c6:#8a7a1f;--c7:#2ba3c4;--s0:#eef3fe;--s1:#cfdefb;--s2:#a7c1f6;--s3:#7aa0ef;--s4:#4f7de6;--s5:#2f5bc9;--s6:#1e3f96;}@media (prefers-color-scheme: dark){.ck{--bg:#14161a;--surface:#1c1f25;--ink:#eef0f4;--muted:#9aa3b0;--grid:#2b3038;--axis:#4a515c;--pos:#4fc9a1;--neg:#f0778c;--c0:#79a0ff;--c1:#f5a05e;--c2:#4fc9a1;--c3:#c98ae0;--c4:#f0778c;--c5:#93a3b5;--c6:#c9b64e;--c7:#5ec8e6;--s0:#1b2436;--s1:#22304c;--s2:#2b4068;--s3:#365388;--s4:#4568aa;--s5:#5a80cb;--s6:#7599e6;}}.ck{font-family:ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;}.ck .bgr{fill:var(--bg)}.ck .ttl{fill:var(--ink);font-size:15px;font-weight:600}.ck .sub{fill:var(--muted);font-size:11.5px}.ck .lbl{fill:var(--muted);font-size:11px}.ck .vlbl{fill:var(--ink);font-size:11px;font-weight:600}.ck .gl{stroke:var(--grid);stroke-width:1}.ck .ax{stroke:var(--axis);stroke-width:1}.ck .ln{fill:none;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}</style><rect class="bgr" width="760" height="380" rx="10"/><text class="ttl" x="16" y="24">TikTok — video views per post</text><text class="sub" x="16" y="42">same window · own volatility, nothing at 12 May</text><line class="gl" x1="58" y1="340.0" x2="742" y2="340.0"/><text class="lbl" x="50" y="344.0" text-anchor="end">0</text><line class="gl" x1="58" y1="293.7" x2="742" y2="293.7"/><text class="lbl" x="50" y="297.7" text-anchor="end">50k</text><line class="gl" x1="58" y1="247.3" x2="742" y2="247.3"/><text class="lbl" x="50" y="251.3" text-anchor="end">100k</text><line class="gl" x1="58" y1="201.0" x2="742" y2="201.0"/><text class="lbl" x="50" y="205.0" text-anchor="end">150k</text><line class="gl" x1="58" y1="154.7" x2="742" y2="154.7"/><text class="lbl" x="50" y="158.7" text-anchor="end">200k</text><line class="gl" x1="58" y1="108.3" x2="742" y2="108.3"/><text class="lbl" x="50" y="112.3" text-anchor="end">250k</text><line class="gl" x1="58" y1="62.0" x2="742" y2="62.0"/><text class="lbl" x="50" y="66.0" text-anchor="end">300k</text><text class="lbl" x="58.0" y="358" text-anchor="middle">2026-03-01</text><text class="lbl" x="135.7" y="358" text-anchor="middle">2026-03-11</text><text class="lbl" x="213.5" y="358" text-anchor="middle">2026-03-21</text><text class="lbl" x="291.2" y="358" text-anchor="middle">2026-03-31</text><text class="lbl" x="368.9" y="358" text-anchor="middle">2026-04-10</text><text class="lbl" x="446.6" y="358" text-anchor="middle">2026-04-20</text><text class="lbl" x="524.4" y="358" text-anchor="middle">2026-04-30</text><text class="lbl" x="602.1" y="358" text-anchor="middle">2026-05-10</text><text class="lbl" x="679.8" y="358" text-anchor="middle">2026-05-20</text><path class="ln" d="M58.0,303.7 L73.5,232.6 L89.1,278.4 L104.6,161.4 L120.2,302.2 L135.7,279.7 L151.3,177.0 L166.8,172.9 L182.4,140.0 L197.9,296.1 L213.5,208.7 L229.0,171.8 L244.5,155.7 L260.1,165.6 L275.6,277.6 L291.2,303.6 L306.7,148.1 L322.3,176.1 L337.8,123.6 L353.4,131.8 L368.9,127.2 L384.5,284.0 L400.0,276.6 L415.5,87.6 L431.1,299.8 L446.6,248.6 L462.2,281.2 L477.7,192.3 L493.3,162.8 L508.8,88.8 L524.4,252.9 L539.9,161.2 L555.5,93.1 L571.0,180.8 L586.5,232.6 L602.1,222.9 L617.6,235.5 L633.2,85.8 L648.7,73.5 L664.3,202.4 L679.8,196.6 L695.4,187.7 L710.9,99.5 L726.5,116.3 L742.0,203.6" stroke="var(--c0)"/><line class="ax" x1="58" y1="340" x2="742" y2="340"/></svg></div>
+    <div class="chart chart-wide"><svg class="ck" xmlns="http://www.w3.org/2000/svg" width="100%" height="380" viewBox="0 0 760 380" role="img" aria-label="YouTube — engagement rate per post"><style>.ck{--bg:#ffffff;--surface:#f6f7f9;--ink:#16181d;--muted:#5c6370;--grid:#e4e7ec;--axis:#b6bcc7;--pos:#1f9d76;--neg:#d2455f;--c0:#3b6ef2;--c1:#e07b39;--c2:#1f9d76;--c3:#a855c9;--c4:#d2455f;--c5:#5a7183;--c6:#8a7a1f;--c7:#2ba3c4;--s0:#eef3fe;--s1:#cfdefb;--s2:#a7c1f6;--s3:#7aa0ef;--s4:#4f7de6;--s5:#2f5bc9;--s6:#1e3f96;}@media (prefers-color-scheme: dark){.ck{--bg:#14161a;--surface:#1c1f25;--ink:#eef0f4;--muted:#9aa3b0;--grid:#2b3038;--axis:#4a515c;--pos:#4fc9a1;--neg:#f0778c;--c0:#79a0ff;--c1:#f5a05e;--c2:#4fc9a1;--c3:#c98ae0;--c4:#f0778c;--c5:#93a3b5;--c6:#c9b64e;--c7:#5ec8e6;--s0:#1b2436;--s1:#22304c;--s2:#2b4068;--s3:#365388;--s4:#4568aa;--s5:#5a80cb;--s6:#7599e6;}}.ck{font-family:ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;}.ck .bgr{fill:var(--bg)}.ck .ttl{fill:var(--ink);font-size:15px;font-weight:600}.ck .sub{fill:var(--muted);font-size:11.5px}.ck .lbl{fill:var(--muted);font-size:11px}.ck .vlbl{fill:var(--ink);font-size:11px;font-weight:600}.ck .gl{stroke:var(--grid);stroke-width:1}.ck .ax{stroke:var(--axis);stroke-width:1}.ck .ln{fill:none;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}</style><rect class="bgr" width="760" height="380" rx="10"/><text class="ttl" x="16" y="24">YouTube — engagement rate per post</text><text class="sub" x="16" y="42">flat through the break — the content did not change</text><line class="gl" x1="58" y1="340.0" x2="742" y2="340.0"/><text class="lbl" x="50" y="344.0" text-anchor="end">0.2%</text><line class="gl" x1="58" y1="284.4" x2="742" y2="284.4"/><text class="lbl" x="50" y="288.4" text-anchor="end">0.25%</text><line class="gl" x1="58" y1="228.8" x2="742" y2="228.8"/><text class="lbl" x="50" y="232.8" text-anchor="end">0.3%</text><line class="gl" x1="58" y1="173.2" x2="742" y2="173.2"/><text class="lbl" x="50" y="177.2" text-anchor="end">0.35%</text><line class="gl" x1="58" y1="117.6" x2="742" y2="117.6"/><text class="lbl" x="50" y="121.6" text-anchor="end">0.4%</text><line class="gl" x1="58" y1="62.0" x2="742" y2="62.0"/><text class="lbl" x="50" y="66.0" text-anchor="end">0.45%</text><text class="lbl" x="58.0" y="358" text-anchor="middle">2026-03-01</text><text class="lbl" x="128.8" y="358" text-anchor="middle">2026-03-10</text><text class="lbl" x="199.5" y="358" text-anchor="middle">2026-03-19</text><text class="lbl" x="270.3" y="358" text-anchor="middle">2026-03-28</text><text class="lbl" x="341.0" y="358" text-anchor="middle">2026-04-06</text><text class="lbl" x="411.8" y="358" text-anchor="middle">2026-04-15</text><text class="lbl" x="482.6" y="358" text-anchor="middle">2026-04-24</text><text class="lbl" x="553.3" y="358" text-anchor="middle">2026-05-03</text><text class="lbl" x="624.1" y="358" text-anchor="middle">2026-05-12</text><text class="lbl" x="694.8" y="358" text-anchor="middle">2026-05-21</text><path class="ln" d="M58.0,268.8 L81.6,67.6 L105.2,223.2 L128.8,79.8 L152.3,86.5 L175.9,245.5 L199.5,208.8 L223.1,204.3 L246.7,135.4 L270.3,142.1 L293.9,116.5 L317.4,178.8 L341.0,104.3 L364.6,182.1 L388.2,205.4 L411.8,283.3 L435.4,166.5 L459.0,137.6 L482.6,100.9 L506.1,287.7 L529.7,251.0 L553.3,107.6 L576.9,129.8 L600.5,261.0 L624.1,161.0 L647.7,206.6 L671.2,128.7 L694.8,236.6 L718.4,90.9 L742.0,259.9" stroke="var(--c0)"/><line class="ax" x1="58" y1="340" x2="742" y2="340"/></svg></div>
+  </div>
+  <div class="caption" style="max-width:76ch">Every chart is a self-contained SVG with no
+  external requests — no CDN, no webfont, no image fetch. Colors are emitted as CSS custom
+  properties with a second palette under <code>prefers-color-scheme</code>, which is why these
+  follow your theme.</div>
+</section>
+
+<section>
+  <h2>A result that looks like a win</h2>
+  <div class="col">
+    <p>Alongside the reach question, a new post format was tested against the existing one.
+    It converted at 4.81% against 3.48% — a 38% relative lift, and the kind of number that
+    gets a format rolled out everywhere.</p>
+  </div>
+  <div class="term"><pre><span class="cmd">python3 tools/abtest.py compare --a 41/1180 --b 58/1205</span>
+A    3.475%        41/1,180     [2.57%, 4.68%]
+B    4.813%        58/1,205     [3.74%, 6.17%]
+
+<span class="hit">absolute difference  +1.339 pp  [-0.259, +2.936] at 95%</span>
+relative lift        +38.5%
+two-sided p          0.1013   (z = +1.639)
+
+<span class="bad">verdict: NOT significant. The interval contains zero — B may be worse. Do not ship on this.</span></pre></div><div class="term"><pre><span class="cmd">python3 tools/abtest.py bayes --a 41/1180 --b 58/1205</span>
+
+P(B &gt; A)                 94.5%
+expected loss if B ships 0.0177 pp
+expected gain if B ships 1.3526 pp
+
+<span class="dim">read: inconclusive. The honest move is more data or a bigger swing — not a rerun with a new metric.</span></pre></div>
+  <div class="caption" style="max-width:76ch"><b>Both readings are shown because they answer
+  different questions.</b> The frequentist test says the difference has not been demonstrated.
+  The Bayesian read says B is probably better and the downside of being wrong is small. For a
+  reversible change that combination argues for shipping; for an irreversible one it argues
+  for more data. The framework should follow the reversibility of the decision — and neither
+  result supports the headline &ldquo;+38%&rdquo;.</div>
+</section>
+
+<section>
+  <h2>Five things the pipeline caught that a direct read would not</h2>
+  <div class="catches">
+    <div class="catch">
+      <div class="t"><span class="tag">Mapping</span>A date column read as an ID</div>
+      <div class="b">&ldquo;Video publish time&rdquo; contains the letters <code>id</code> inside
+      &ldquo;video&rdquo;. Substring matching assigns it to <code>post_id</code>, the real date
+      column goes unmapped, and every time series silently sorts by nothing.</div>
+    </div>
+    <div class="catch">
+      <div class="t"><span class="tag">Units</span>Watch time off by a factor of 3,600</div>
+      <div class="b">YouTube exports hours; the schema stores seconds. Copying the number
+      through produces a plausible-looking figure that is wrong by three orders of magnitude —
+      the kind of error that survives review because nobody has an intuition for the correct
+      value.</div>
+    </div>
+    <div class="catch">
+      <div class="t"><span class="tag">Encoding</span>A spreadsheet round-trip in cp1252</div>
+      <div class="b">Excel writes cp1252 constantly. <code>UnicodeDecodeError</code> subclasses
+      <code>ValueError</code>, so it slips past <code>except OSError</code> and surfaces as a raw
+      traceback on the exact files the tool exists to read.</div>
+    </div>
+    <div class="catch">
+      <div class="t"><span class="tag">Baseline</span>Growth misreported as anomalies</div>
+      <div class="b">A rolling-median baseline sits permanently below a trending series, so a
+      healthy account generates a continuous run of false spikes and the alert gets muted
+      within a week. Fitting slope first means a flag means &ldquo;this broke from its own
+      trajectory&rdquo;.</div>
+    </div>
+    <div class="catch">
+      <div class="t"><span class="tag">Comparison</span>A cross-platform ranking that means nothing</div>
+      <div class="b">12.80% against 0.34% is a definitional artifact of when each platform
+      starts counting, not a quality gap. The normalizer prints that warning next to the
+      numbers rather than letting the table stand alone.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Every figure on this page was produced by running the tools in this repository against the
+  synthetic exports described above — none were written by hand into the copy.<br>
+  Dataset is generated and does not describe any real account, brand, or organization.<br>
+  Tools are stdlib-only Python with no install step; the run makes no network requests.
+</footer>
+
+</div>

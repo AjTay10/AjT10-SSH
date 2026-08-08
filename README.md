@@ -1,7 +1,7 @@
 # Claude configuration — research, analytics, and social
 
-A working Claude setup: **28 skills**, **8 dependency-free tools**, a
-validation hook, and a **98-test adversarial QA suite**. No pip install, no
+A working Claude setup: **28 skills**, **9 dependency-free tools**, a
+validation hook, and a **105-test adversarial QA suite**. No pip install, no
 build step, no API keys.
 
 The skills cover three things that compound: thinking that resists being
@@ -23,7 +23,7 @@ Verify:
 
 ```bash
 python3 qa/validate.py    # config integrity
-python3 qa/selftest.py    # 98 adversarial tests
+python3 qa/selftest.py    # 105 adversarial tests
 ```
 
 ## The skills
@@ -112,6 +112,20 @@ python3 tools/calendar_gen.py --start 2026-09-01 --weeks 8 \
     --slot "Tue 09:00 teardown" --slot "Thu 09:00 clip" \
     --tz America/New_York --out schedule.csv --ics schedule.ics
 ```
+
+## See it run
+
+[`demo/`](demo/) is a complete worked example: three raw platform exports in
+their native formats — different column names, different date formats, one in
+cp1252 — put through the whole pipeline to a finished report.
+
+```bash
+python3 demo/build.py            # regenerate demo/report.html from a real run
+python3 demo/build.py --check    # fail if the committed page is stale
+```
+
+Every number and terminal block on that page is captured from a live subprocess
+run, so nothing in the copy can disagree with what the tools actually output.
 
 ## Commands
 
