@@ -1,13 +1,13 @@
 # Operating manual
 
-This repo is a Claude configuration: 28 skills, 9 tools, a validation hook,
+This repo is a Claude configuration: 29 skills, 10 tools, a validation hook,
 and a QA gate. It is meant to be used, not read.
 
 ## Before you change anything
 
 ```bash
 python3 qa/validate.py      # config integrity — must exit 0
-python3 qa/selftest.py      # 105 adversarial tests — must exit 0
+python3 qa/selftest.py      # 118 adversarial tests — must exit 0
 ```
 
 Both run in CI. A pull request that fails either does not merge.
@@ -16,7 +16,7 @@ Both run in CI. A pull request that fails either does not merge.
 
 ```
 .claude/
-  skills/<name>/SKILL.md    28 skills; directory name MUST equal frontmatter name
+  skills/<name>/SKILL.md    29 skills; directory name MUST equal frontmatter name
   agents/                   subagent definitions
   commands/                 /audit /numbers /attack /gap
   hooks/validate_on_edit.py PostToolUse guard — catches a broken skill instantly
@@ -41,6 +41,7 @@ Every tool is stdlib-only, reads CSV, and prints a table or `--json`.
 | `social_ingest.py` | normalize platform exports into one schema |
 | `dashboard.py` | self-contained HTML dashboard |
 | `calendar_gen.py` | posting schedule → CSV + ICS |
+| `concentration.py` | fragility and decay: what does the total rest on? |
 | `csvio.py` | shared CSV reader: encoding fallback, header checks |
 
 ## Rules this repo enforces

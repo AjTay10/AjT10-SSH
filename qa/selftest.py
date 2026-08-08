@@ -992,6 +992,180 @@ def t_ingest_inspect_no_crash():
 
 
 # ==========================================================================
+# concentration
+# ==========================================================================
+
+def t_conc_known_answers():
+    """Four identical items: HHI exactly 0.25, effective count exactly 4,
+    Gini exactly 0. If these drift, every downstream verdict is wrong."""
+    import concentration as c
+    res = c.analyze([("a", 10), ("b", 10), ("c", 10), ("d", 10)])
+    assert abs(res["hhi"] - 0.25) < 1e-9, res["hhi"]
+    assert abs(res["effective_n"] - 4.0) < 1e-9, res["effective_n"]
+    assert abs(res["gini"]) < 1e-9, res["gini"]
+    assert abs(res["hhi_normalized"]) < 1e-9, "even split must normalize to 0"
+    assert abs(res["top1_x_even_share"] - 1.0) < 1e-9
+    assert abs(res["shares"]["top1"] - 0.25) < 1e-9
+
+
+def t_conc_single_dominant():
+    import concentration as c
+    res = c.analyze([("big", 1000)] + [(f"s{i}", 1) for i in range(99)])
+    assert res["gini"] > 0.85, res["gini"]
+    assert res["effective_n"] < 2, res["effective_n"]
+    assert res["shares"]["top1"] > 0.9
+    assert abs(res["fragility"]["drop_top1"]["pct_lost"]
+               - res["shares"]["top1"] * 100) < 1e-6, \
+        "leave-one-out must equal the top-1 share"
+
+
+def t_conc_bounds_hold():
+    """Every index must stay inside its defined range on any input shape."""
+    import concentration as c
+    for items in ([("a", 1), ("b", 1), ("c", 1)],
+                  [("a", 1e9), ("b", 1), ("c", 1)],
+                  [(f"i{i}", i + 1) for i in range(200)],
+                  [(f"i{i}", 2 ** min(i, 60)) for i in range(40)]):
+        r = c.analyze(items)
+        n = r["items"]
+        assert 1.0 / n - 1e-9 <= r["hhi"] <= 1.0 + 1e-9, r["hhi"]
+        assert -1e-9 <= r["hhi_normalized"] <= 1.0 + 1e-9, r["hhi_normalized"]
+        assert -1e-9 <= r["gini"] <= 1.0 + 1e-9, r["gini"]
+        assert 1.0 <= r["effective_n"] <= n + 1e-9, r["effective_n"]
+
+
+def t_conc_verdict_matches_the_table():
+    """Regression: the verdict once printed 'no concentration flag' above a
+    table showing top-1 at 20% and Gini 0.77, because the HHI bands were
+    borrowed from antitrust and are meaningless at large n."""
+    with tempfile.TemporaryDirectory() as d:
+        rows = ["url,views"]
+        rows.append("/monster,200000")
+        rows.append("/second,120000")
+        for i in range(380):
+            rows.append(f"/p{i},{200 + i}")
+        p = write(d, "s.csv", "\n".join(rows) + "\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p,
+                            "--item", "url", "--value", "views"])
+        assert rc == 0, err
+        assert "No concentration flag" not in out, \
+            "verdict contradicts a clearly power-law distribution"
+        assert "even share" in out, "missing the scale-aware top-1 reading"
+        assert "power law" in out or "unequal" in out, \
+            f"band did not register the inequality:\n{out[:400]}"
+
+
+def t_conc_blank_is_not_zero():
+    with tempfile.TemporaryDirectory() as d:
+        p = write(d, "s.csv", "id,rev\na,10\nb,\nc,20\nd,30\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev", "--json"])
+        assert rc == 0, err
+        data = json.loads(out)
+        assert data["concentration"]["items"] == 3, "blank was counted as an item"
+        assert data["skipped_blank"] == 1
+        assert data["concentration"]["total"] == 60
+
+
+def t_conc_negatives_excluded_and_reported():
+    with tempfile.TemporaryDirectory() as d:
+        p = write(d, "s.csv", "id,rev\na,10\nb,-5\nc,20\nd,30\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev", "--json"])
+        assert rc == 0, err
+        data = json.loads(out)
+        assert data["skipped_negative"] == 1, "negative value silently included"
+        assert data["concentration"]["total"] == 60
+
+
+def t_conc_too_few_items():
+    with tempfile.TemporaryDirectory() as d:
+        p = write(d, "s.csv", "id,rev\na,10\nb,20\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev"])
+        expect_clean_error(rc, out, err, "two items")
+        assert "3" in err, "error should name the minimum"
+
+
+def t_conc_all_zero():
+    with tempfile.TemporaryDirectory() as d:
+        p = write(d, "s.csv", "id,rev\na,0\nb,0\nc,0\nd,0\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev"])
+        expect_clean_error(rc, out, err, "all-zero values")
+
+
+def t_conc_decay_requires_date():
+    with tempfile.TemporaryDirectory() as d:
+        p = write(d, "s.csv", "id,rev\na,10\nb,20\nc,30\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev", "--decay"])
+        expect_clean_error(rc, out, err, "--decay without --date")
+        assert "--date" in err, "error should name the missing flag"
+
+
+def t_conc_vintage_shares_sum_to_one():
+    with tempfile.TemporaryDirectory() as d:
+        rows = ["id,rev,pub"]
+        for i in range(40):
+            rows.append(f"i{i},{100 + i},202{i % 4}-0{i % 9 + 1}-01")
+        p = write(d, "s.csv", "\n".join(rows) + "\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev", "--date", "pub", "--decay",
+                            "--period", "year", "--json"])
+        assert rc == 0, err
+        v = json.loads(out)["vintages"]
+        assert abs(sum(x["share"] for x in v) - 1.0) < 1e-6, \
+            "vintage shares must sum to 1"
+        assert [x["period"] for x in v] == sorted(x["period"] for x in v), \
+            "vintages must be chronological"
+
+
+def t_conc_decay_flags_melting_asset():
+    """Production rising while yield falls is the signal worth paying for."""
+    with tempfile.TemporaryDirectory() as d:
+        rows = ["id,rev,pub"]
+        for i in range(20):                       # old, few, lucrative
+            rows.append(f"old{i},{500 + i},2021-03-01")
+        for i in range(25):
+            rows.append(f"a{i},{300 + i},2022-03-01")
+        for i in range(30):
+            rows.append(f"mid{i},{120 + i},2023-03-01")
+        for i in range(40):
+            rows.append(f"b{i},{40 + i},2024-03-01")
+        for i in range(80):                       # new, many, worthless
+            rows.append(f"new{i},{5 + i % 3},2025-03-01")
+        p = write(d, "s.csv", "\n".join(rows) + "\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev", "--date", "pub", "--decay",
+                            "--period", "year"])
+        assert rc == 0, err
+        assert "age handicap" in out, "missing the accrual-bias caveat"
+        assert "Recent work is not moving" in out or "old work" in out, \
+            f"decay went unflagged:\n{out[-600:]}"
+
+
+def t_conc_json_is_clean():
+    with tempfile.TemporaryDirectory() as d:
+        rows = ["id,rev,pub"] + [f"i{i},{i+1},202{i%4}-01-01" for i in range(40)]
+        p = write(d, "s.csv", "\n".join(rows) + "\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "rev", "--date", "pub", "--decay", "--json"])
+        assert rc == 0, err
+        assert "Infinity" not in out and "NaN" not in out
+        json.loads(out)
+
+
+def t_conc_missing_column():
+    with tempfile.TemporaryDirectory() as d:
+        p = write(d, "s.csv", "id,rev\na,10\nb,20\nc,30\n")
+        rc, out, err = run(["tools/concentration.py", "--csv", p, "--item", "id",
+                            "--value", "nope"])
+        expect_clean_error(rc, out, err, "unknown value column")
+        assert "rev" in err, "error should list the columns that exist"
+
+
+# ==========================================================================
 # dashboard
 # ==========================================================================
 

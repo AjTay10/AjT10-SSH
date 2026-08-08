@@ -1,7 +1,7 @@
 # Claude configuration — research, analytics, and social
 
-A working Claude setup: **28 skills**, **9 dependency-free tools**, a
-validation hook, and a **105-test adversarial QA suite**. No pip install, no
+A working Claude setup: **29 skills**, **10 dependency-free tools**, a
+validation hook, and a **118-test adversarial QA suite**. No pip install, no
 build step, no API keys.
 
 The skills cover three things that compound: thinking that resists being
@@ -23,7 +23,7 @@ Verify:
 
 ```bash
 python3 qa/validate.py    # config integrity
-python3 qa/selftest.py    # 105 adversarial tests
+python3 qa/selftest.py    # 118 adversarial tests
 ```
 
 ## The skills
@@ -58,6 +58,7 @@ python3 qa/selftest.py    # 105 adversarial tests
 | `stat-guard` | Significance, sample size, Bayesian read, the cost of peeking. |
 | `anomaly-watch` | Trend-aware robust detection. Changepoints, not just spikes. |
 | `data-clean` | The specific ways platform exports lie. |
+| `deal-diligence` | Is this asset worth the ask? Concentration, decay, trend reality. |
 
 **Social**
 
@@ -95,6 +96,11 @@ python3 tools/abtest.py size --baseline 0.03 --lift 0.15 --daily 1200
 
 # Did the metric actually break, or is it just moving?
 python3 tools/anomaly.py --csv daily.csv --date date --value views --seasonal weekly
+
+# What does this total actually rest on? (acquisition diligence)
+python3 tools/concentration.py --csv pages.csv --item url --value pageviews
+python3 tools/concentration.py --csv posts.csv --item id --value revenue \
+    --date published --decay --period year
 
 # Social exports → one schema → dashboard
 python3 tools/social_ingest.py --csv yt.csv --platform youtube \
