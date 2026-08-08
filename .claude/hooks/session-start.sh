@@ -70,9 +70,11 @@ echo "${version} is installed and on PATH. agent-reach channels: ${ok_list:-unkn
 cat <<'EOF'
 `reach` covers the social platforms and generic web reading: web, search, x,
 reddit, bluesky, mastodon, telegram, tiktok, instagram, facebook, linkedin,
-threads, pinterest, youtube, wikipedia, hn, stackoverflow. Use it instead of
-hand-rolled scrapers, and instead of the agent-reach skill's own commands for
-those platforms — `reach doctor` shows live status for all 17.
+threads, pinterest, youtube, wikipedia, hn, stackoverflow, snapchat, discord,
+twitch, tumblr, vk, vimeo, weibo, quora, douyin, xiaohongshu, bilibili, medium,
+substack, and rss (any feed, or a site URL to autodiscover one). Use it instead
+of hand-rolled scrapers, and instead of the agent-reach skill's own commands for
+those platforms — `reach doctor` shows live status for all 31.
 
 Two limits in this container:
   - Jina Reader (curl r.jina.ai) is IP-blocked with HTTP 401, so `agent-reach

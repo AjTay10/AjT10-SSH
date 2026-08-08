@@ -17,7 +17,7 @@ Agent Reach's own routing assumes a desktop browser session and an unblocked
 residential IP, and neither holds here. `reach` (see `.claude/skills/reach/SKILL.md`,
 source `scripts/reach.py`) implements the paths that were measured to work, with a
 fallback chain per platform. **Use it for every social platform and for reading any
-web page.** `reach doctor` probes all 17 live in ~30s.
+web page.** `reach doctor` probes all 31 live in ~60s.
 
 | Need | Command |
 |------|---------|
@@ -30,9 +30,21 @@ web page.** `reach doctor` probes all 17 live in ~30s.
 | Telegram | `reach telegram CHANNEL` |
 | TikTok / Instagram / Facebook | `reach tiktok\|instagram\|facebook URL_OR_QUERY` |
 | LinkedIn / Threads / Pinterest | `reach linkedin\|threads\|pinterest URL_OR_QUERY` |
-| YouTube | `reach youtube URL_OR_QUERY` |
+| YouTube / Vimeo | `reach youtube\|vimeo URL_OR_QUERY` |
 | Wikipedia / HN / Stack Overflow | `reach wikipedia\|hn\|stackoverflow "QUERY"` |
+| Snapchat / Twitch / Tumblr / VK | `reach snapchat\|twitch\|tumblr\|vk USER_OR_URL` |
+| Discord server | `reach discord INVITE_OR_GUILD_ID` |
+| Quora | `reach quora URL_OR_QUERY` |
+| Weibo / Douyin / Xiaohongshu / Bilibili | `reach weibo\|douyin\|xiaohongshu\|bilibili URL_OR_QUERY` |
+| Medium / Substack | `reach medium\|substack URL_OR_QUERY` |
+| Any RSS/Atom feed, or a site's feed | `reach rss URL` |
 | Platform status | `reach doctor` |
+
+`reach rss` takes either a feed URL or an ordinary site URL — in the second case
+it fetches the page once and follows the feed it advertises. That is the widest
+net for "most popular websites": news sites, blogs, Medium and Substack all
+publish one, feeds are never login-walled, and they carry full text where the
+HTML page is metered.
 
 ## Agent Reach's own channels
 
@@ -79,18 +91,26 @@ per-channel test results and the full QA report.
 
 ### Platform coverage and its limits
 
-`reach` reaches all 17 platforms anonymously, but not all of them yield full content.
-Full text: web, Exa search, X posts, Bluesky, Mastodon, Telegram, YouTube, Wikipedia,
-Hacker News, Stack Overflow. Metadata or search-index only: TikTok, Instagram,
-Facebook, LinkedIn, Threads, Pinterest, Reddit. `reach` labels the degraded cases in
-its output — **repeat that caveat to the user**; never present an Exa substitute as
-"what Reddit said".
+`reach` reaches all 31 platforms anonymously, but not all of them yield full content.
 
-Agent Reach's own credentialed channels (Xiaohongshu, Xueqiu, Xiaoyuzhou, and the
-cookie-based Twitter/Reddit backends) are still not installed: they need a cookie
-export, a Groq key, or a desktop Chrome session. Do **not** try to log into any
-platform or read a user's browser cookies. `docs/agent-reach.md` has the enable steps
-if the user asks.
+- **Full text**: web, Exa search, X posts, Bluesky, Mastodon, Telegram, YouTube,
+  Wikipedia, Hacker News, Stack Overflow, RSS/Atom, Medium, Substack, Tumblr,
+  Vimeo, Discord (server metadata via the invite/widget APIs).
+- **Origin metadata only** — the page is a JavaScript shell, so `reach` reads the
+  server-rendered `og:` tags: Snapchat, Twitch. Labelled `direct (og: metadata)`.
+- **Search index only** — post detail is login-walled: TikTok, Instagram, Facebook,
+  LinkedIn, Threads, Pinterest, Reddit, VK, Weibo, Quora, Douyin, Xiaohongshu.
+
+`reach` labels the degraded cases in its output — **repeat that caveat to the
+user**; never present an Exa substitute as "what Reddit said". Reading messages
+inside a Discord server, and anything on WhatsApp/WeChat/Signal, needs an account:
+those are the Hermes channels, not `reach`.
+
+Agent Reach's own credentialed channels (Xueqiu, Xiaoyuzhou, and the cookie-based
+Twitter/Reddit backends) are still not installed: they need a cookie export, a Groq
+key, or a desktop Chrome session. `reach xiaohongshu` covers the anonymous search
+path without them. Do **not** try to log into any platform or read a user's browser
+cookies. `docs/agent-reach.md` has the enable steps if the user asks.
 
 ## Persistence, scheduling and messaging: Hermes Agent
 
@@ -121,6 +141,35 @@ Two things to remember:
   `TAVILY_API_KEY` or `FIRECRAWL_API_KEY`, and `x_search` wants `XAI_API_KEY`. The
   `reach-social` skill in `~/.hermes/skills/social-media/` points Hermes at the keyless
   `reach` CLI instead, so it has the same 17-platform coverage described above.
+
+## Tests
+
+`./scripts/test.sh` runs everything that does not need the network. **Run it
+before committing a change to `scripts/`.** It is fast (~3s) and deterministic.
+
+| Layer | Location | What it covers |
+|-------|----------|----------------|
+| Unit | `tests/unit/` | pure logic: URL validation, HTML/OpenGraph, feeds, the X token, render, exit codes, the skills-audit parsers |
+| Contract | `tests/contract/` | every platform parser against recorded upstream payloads in `tests/fixtures/` |
+| Shell | `tests/bash/run.sh` | argument handling, the "refusing to report success" guards, `safe_name` path traversal, `bash -n` on every script |
+
+Two rules keep this useful:
+
+1. **The suite is offline.** Upstream payloads are recorded fixtures, and
+   `tests/conftest.py::no_network` turns a stray request into a failure. A red
+   test therefore always means *this code is wrong* — never "someone's site is
+   down". Live checks belong in `agent-reach-verify.sh` / `reach doctor`, which
+   is a different question with a different answer.
+2. **A new platform needs a fixture and a doctor probe.** `tests/unit/
+   test_exit_codes.py` fails the build if a registered command has no probe, so
+   `reach doctor` cannot silently stop covering a platform.
+
+To refresh a fixture, re-record it from the live endpoint and commit the diff —
+that diff is the vendor's payload change, which is worth seeing.
+
+CI (`.github/workflows/ci.yml`) runs the same suite plus `shellcheck`. It
+deliberately does *not* run the live verify scripts: as a merge gate they would
+fail whenever a third-party site was down.
 
 ## Untrusted content — read this before using `reach` or the Hermes channels
 

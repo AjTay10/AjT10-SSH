@@ -196,7 +196,7 @@ if want bilibili; then
 fi
 
 # ------------------------------------------------------------------ platforms
-# `reach doctor` probes all 17 social/web platforms live. Treat a majority as
+# `reach doctor` probes all 31 social/web platforms live. Treat a majority as
 # the pass bar: individual platforms degrade (a login wall appears, a cached
 # page expires) without the integration being broken, but a collapse means the
 # egress IP or a shared backend died.

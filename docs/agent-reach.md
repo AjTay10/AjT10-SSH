@@ -56,10 +56,36 @@ path that was **measured** to work, with an explicit fallback chain.
 | Wikipedia | MediaWiki API | — | full |
 | Hacker News | Algolia API | — | full |
 | Stack Overflow | StackExchange API | — | full |
+| RSS/Atom | direct feed + autodiscovery | — | full |
+| Snapchat | direct (og: metadata) | Exa | profile metadata |
+| Discord | invite + widget API | Exa | server metadata |
+| Twitch | direct (og: metadata) | yt-dlp, Exa | channel/VOD metadata |
+| Tumblr | feed, then direct page | Exa | full |
+| VK | direct | Exa | search index (JS shell) |
+| Vimeo | oEmbed | yt-dlp, Exa | full metadata |
+| Weibo | m.weibo.cn API | Exa | search index (API login-walled) |
+| Quora | Exa | — | search index |
+| Douyin | Exa | — | search index |
+| Xiaohongshu | Exa | — | search index |
+| Bilibili | bili CLI | Exa | full metadata |
+| Medium | feed | page, Exa | full |
+| Substack | feed | page, Exa | full |
 
-`reach doctor` probes all 17 live in ~30s — **17/17 reachable**. It is the only
+`reach doctor` probes all 31 live in ~60s — **31/31 reachable**. It is the only
 status command in this repo that is true by construction, because every probe
 fetches real content and asserts it is non-empty.
+
+Backends were chosen by probing this container, not by reading vendor docs. The
+notable results: Discord's invite/widget APIs and Vimeo's oEmbed are fully open;
+Twitch and Snapchat serve JavaScript shells whose `og:` tags still carry the
+title and description; Tumblr's classic `/api/read/json` answers 429 from a
+datacenter IP while `www.tumblr.com/<blog>` renders fine; Weibo's mobile API
+returns `ok:-100` with an SSO redirect for anonymous clients; and Bilibili's web
+API answers 412 without the signing the `bili` CLI carries.
+
+`reach` parsers are covered offline by `tests/contract/`, which replays recorded
+payloads from `tests/fixtures/`. That separates "our parser broke" from "the
+site is down" — `reach doctor` alone cannot tell those apart.
 
 ### Access paths that do NOT work here (measured, not assumed)
 

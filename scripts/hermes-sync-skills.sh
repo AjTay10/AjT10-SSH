@@ -49,14 +49,20 @@ list_claude() {
   done
 }
 
+# Both finders print a path or nothing, and must always exit 0. "Not found" is
+# a normal outcome the caller reports with die(); returning non-zero instead
+# tripped `set -e` at the assignment, so the script exited 1 having printed
+# nothing at all and the caller never learned the name was unknown.
 find_hermes_skill() {
   find "$HERMES_SKILLS" -maxdepth 3 -type d -name "$1" 2>/dev/null | head -1
+  return 0
 }
 
 find_claude_skill() {
   for root in "$REPO_DIR/.claude/skills" "$CLAUDE_SKILLS"; do
-    [ -d "$root/$1" ] && { echo "$root/$1"; return; }
+    [ -d "$root/$1" ] && { echo "$root/$1"; return 0; }
   done
+  return 0
 }
 
 copy_tree() {

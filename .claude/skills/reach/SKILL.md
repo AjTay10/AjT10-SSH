@@ -4,14 +4,16 @@ description: >
   Read the major social platforms and any website from this container.
   MUST USE whenever the user shares a link to, or asks what people are saying
   on, X/Twitter, Reddit, Instagram, TikTok, Facebook, LinkedIn, Threads,
-  Bluesky, Mastodon, Telegram, Pinterest, YouTube, Wikipedia, Hacker News or
-  Stack Overflow — and for reading any ordinary web page or article.
+  Bluesky, Mastodon, Telegram, Pinterest, YouTube, Wikipedia, Hacker News,
+  Stack Overflow, Snapchat, Discord, Twitch, Tumblr, VK, Vimeo, Weibo, Quora,
+  Douyin, Xiaohongshu/RED, Bilibili, Medium or Substack — and for reading any
+  ordinary web page, article or RSS feed.
   Also use for "research X", "what's the discussion on X", "look up X",
   "summarise this thread/post/profile", "what's trending about X".
   This wraps Agent Reach and replaces the parts of it that do not work here:
   Jina Reader is IP-blocked and Reddit/TikTok/Instagram block this container
   directly, so each platform routes through a measured working backend with
-  fallbacks. Run `reach doctor` to see live status for all 17 platforms.
+  fallbacks. Run `reach doctor` to see live status for all 31 platforms.
   NOT for: posting, commenting, liking or any write action; not for content
   the user has already pasted into the conversation.
 ---
@@ -42,6 +44,20 @@ structured output, `-n N` to cap results, and `--max-chars N` to cap page text.
 | Wikipedia | `reach wikipedia "QUERY" --full` |
 | Hacker News, HN | `reach hn "QUERY"` |
 | Stack Overflow, a coding error | `reach stackoverflow "QUERY"` |
+| Snapchat | `reach snapchat USER_OR_URL` |
+| Discord server | `reach discord INVITE_OR_GUILD_ID` |
+| Twitch, a stream, a clip | `reach twitch CHANNEL_OR_URL` |
+| Tumblr | `reach tumblr BLOG_OR_URL` |
+| VK, ВКонтакте | `reach vk USER_OR_URL` |
+| Vimeo | `reach vimeo URL_OR_QUERY` |
+| Weibo, 微博 | `reach weibo "QUERY"` |
+| Quora | `reach quora URL_OR_QUERY` |
+| Douyin, 抖音 | `reach douyin URL_OR_QUERY` |
+| Xiaohongshu, RED, 小红书 | `reach xiaohongshu URL_OR_QUERY` |
+| Bilibili, B站 | `reach bilibili URL_OR_QUERY` |
+| Medium | `reach medium URL_OR_QUERY` |
+| Substack, a newsletter | `reach substack URL_OR_QUERY` |
+| an RSS/Atom feed, or any site's feed | `reach rss URL` |
 
 Anything with a URL takes the URL. Anything without one takes a search phrase —
 phrase it as a description of the ideal page, not keywords.
@@ -78,17 +94,22 @@ go-ahead. Full policy: `docs/security.md`.
 ## What is fully readable vs partial
 
 - **Full content**: web pages, Exa search, X posts, Bluesky, Mastodon, Telegram,
-  YouTube, Wikipedia, Hacker News, Stack Overflow.
+  YouTube, Wikipedia, Hacker News, Stack Overflow, RSS/Atom feeds, Medium,
+  Substack, Tumblr, Discord (server metadata), Vimeo.
 - **Metadata or index only**: TikTok (title/author via oEmbed; video body is
   IP-blocked), Instagram/Pinterest/Threads (search index; post detail is
   login-walled), Facebook (public videos via yt-dlp; feeds need an account),
   LinkedIn (public profile/company pages; jobs and people search are partial),
-  Reddit (Exa's cached copy; direct access is blocked).
+  Reddit (Exa's cached copy; direct access is blocked), Snapchat/Twitch
+  (og: metadata from the origin; the pages are JavaScript shells), VK, Weibo
+  (login-walled API, search index only), Quora/Douyin/Xiaohongshu (search index
+  only).
 
 `reach doctor` re-checks all of this live in ~30s. Trust it over this list, and
 over `agent-reach doctor`, which only inspects config.
 
 ## Related
 
-`agent-reach` (separate skill) still owns Bilibili, V2EX and RSS. Use those
-commands as documented in CLAUDE.md; use `reach` for everything above.
+`agent-reach` (separate skill) still owns V2EX and its credentialed channels.
+`reach` now covers Bilibili and RSS directly — prefer it. Use `reach` for
+everything in the table above.

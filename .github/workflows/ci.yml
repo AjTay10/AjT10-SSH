@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: offline tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        # beautifulsoup4 is optional at runtime — html_to_text falls back to a
+        # regex stripper without it — but the suite exercises BOTH paths and
+        # asserts they agree, so it must be present here.
+        run: python -m pip install --upgrade pip pytest beautifulsoup4
+
+      - name: Python tests
+        run: python -m pytest
+
+      - name: Shell tests
+        run: ./tests/bash/run.sh
+
+  lint:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        # SC1091: sourced files are resolved at runtime in the container.
+        # SC2181: the $? style is used consistently and deliberately here.
+        run: |
+          shellcheck --severity=warning --exclude=SC1091,SC2181 \
+            scripts/*.sh .githooks/pre-commit .claude/hooks/session-start.sh \
+            tests/bash/run.sh
+
+  # Deliberately NOT in CI: scripts/agent-reach-verify.sh and
+  # scripts/hermes-verify.sh. Both make live calls to 30+ third-party services
+  # and are the right tool for "is this container wired up", but as a merge
+  # gate they would fail whenever someone else's site is down. Run them in the
+  # container instead.

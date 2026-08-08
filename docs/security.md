@@ -35,7 +35,7 @@ installs and enables everything.
 
 This is the one that matters, and no scanner detects it.
 
-`reach` pulls text from 17 platforms — web pages, X, Reddit, Telegram,
+`reach` pulls text from 31 platforms — web pages, X, Reddit, Telegram,
 LinkedIn, YouTube descriptions. Every byte is written by someone else. Hermes
 relays messages from anyone who can reach a linked channel. All of it lands in
 an agent's context window next to your actual instructions.

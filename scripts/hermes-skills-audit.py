@@ -60,10 +60,32 @@ def parse_frontmatter(path):
     raw, body = parts[1], parts[2]
     data = {}
     stack = [(0, data)]
+    # The key a bare `- item` line belongs to. Block sequences are the common
+    # way to write a list in YAML, and treating them as "no value" made the
+    # audit report READY for skills with unmet prerequisites — the exact
+    # failure this script exists to catch.
+    pending_key, pending_parent, pending_indent = None, None, None
     for line in raw.splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         indent = len(line) - len(line.lstrip())
+        stripped = line.strip()
+
+        if stripped.startswith("-"):
+            item = stripped[1:].strip().strip("'\"")
+            if pending_key is not None and item and indent >= pending_indent:
+                lst = pending_parent.get(pending_key)
+                if not isinstance(lst, list):
+                    # Drop the placeholder mapping this key opened, and the
+                    # stack frame that came with it, so later keys do not land
+                    # in an orphaned dict.
+                    lst = []
+                    pending_parent[pending_key] = lst
+                    if len(stack) > 1 and stack[-1][1] == {}:
+                        stack.pop()
+                lst.append(item)
+            continue
+
         m = re.match(r"^\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$", line)
         if not m:
             continue
@@ -72,15 +94,20 @@ def parse_frontmatter(path):
             stack.pop()
         parent = stack[-1][1]
         if val == "":
+            # Ambiguous until the next line: `key:` opens either a nested
+            # mapping or a block sequence. Record it as an empty mapping and
+            # let a following `- item` convert it to a list.
             child = {}
             parent[key] = child
             stack.append((indent, child))
+            pending_key, pending_parent, pending_indent = key, parent, indent
         else:
             if val.startswith("[") and val.endswith("]"):
                 items = [i.strip().strip("'\"") for i in val[1:-1].split(",")]
                 parent[key] = [i for i in items if i]
             else:
                 parent[key] = val.strip("'\"")
+            pending_key, pending_parent, pending_indent = None, None, None
     return data, body
 
 
@@ -90,8 +117,14 @@ def parse_frontmatter(path):
 HEAVY = {"marker-pdf", "vllm", "torch", "transformers", "lm-eval",
          "llama-cpp-python"}
 
+# Horizontal whitespace only. With \s the package list ran past the end of the
+# line and swallowed the first word of the next one ("later: pip install ..."
+# yielded a package called "later"). Quotes are matched because pinning a
+# version in docs almost always quotes it: pip install 'requests>=2.0'.
+_PIP_TOKEN = r"['\"]?[A-Za-z0-9_.\[\]><=,~!-]+['\"]?"
 _PIP_RE = re.compile(
-    r"pip3?\s+install\s+((?:--[a-z-]+\s+)*)([A-Za-z0-9_.\[\]><=,-]+(?:\s+[A-Za-z0-9_.\[\]><=,-]+)*)")
+    r"pip3?[ \t]+install[ \t]+((?:--[a-z-]+[ \t]+)*)"
+    r"(" + _PIP_TOKEN + r"(?:[ \t]+" + _PIP_TOKEN + r")*)")
 
 
 def body_pip_packages(body):
@@ -104,9 +137,10 @@ def body_pip_packages(body):
     found = []
     for m in _PIP_RE.finditer(body or ""):
         for tok in m.group(2).split():
+            tok = tok.strip("'\"")
             if tok.startswith("-") or tok in ("install", "pip", "pip3"):
                 continue
-            pkg = re.split(r"[><=\[]", tok)[0].strip(",.")
+            pkg = re.split(r"[><=~!\[]", tok)[0].strip(",.")
             # The regex runs on prose, so it also catches shell fragments that
             # happen to follow `pip install` on the same line — redirections,
             # file arguments, URLs. Keep only things shaped like a package.

@@ -187,7 +187,7 @@ agent-reach doctor 2>&1 | sed 's/^/  /'
 cat <<EOF
 
 Agent Reach is installed.
-  Platform status       : reach doctor      (17 platforms, live probes)
+  Platform status       : reach doctor      (31 platforms, live probes)
   Channel status        : agent-reach doctor (config only — see docs/agent-reach.md)
   Live end-to-end check : ./scripts/agent-reach-verify.sh
   Skills                : ~/.claude/skills/agent-reach/ and .claude/skills/reach/

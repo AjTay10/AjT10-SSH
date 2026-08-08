@@ -94,7 +94,7 @@ if want mcp; then
   # open, so this only affects short probes like this one. Hold stdin open
   # briefly and retry rather than reporting a flaky FAIL.
   init=""; tools=""
-  for attempt in 1 2 3; do
+  for _ in 1 2 3; do
     out="$({ printf '%s\n' "$req"; sleep 2; } | timeout "$TIMEOUT" hermes mcp serve 2>/dev/null)"
     init="$(printf '%s' "$out" | jq -rs 'map(select(.id == 1)) | .[0].result.serverInfo.name // empty' 2>/dev/null)"
     tools="$(printf '%s' "$out" | jq -rs 'map(select(.id == 2)) | .[0].result.tools // [] | map(.name) | join(",")' 2>/dev/null)"

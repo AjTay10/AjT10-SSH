@@ -239,10 +239,6 @@ if want injection; then
   if [ -n "$missing" ]; then
     bad injection "untrusted-content policy missing from:$missing"
   else
-    linked="unknown"
-    if command -v hermes >/dev/null 2>&1; then
-      linked="$(timeout 60 hermes send --list 2>/dev/null | grep -c '^' || echo 0)"
-    fi
     ok injection "policy present in CLAUDE.md, docs/security.md and the reach skill"
     if [ -f "$HERMES_HOME/channel_directory.json" ]; then
       warn injection "Hermes has linked channels — anyone who can message them can reach the agent; see docs/security.md"

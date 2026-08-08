@@ -30,6 +30,20 @@ backends failed.
   reach wikipedia QUERY             wikipedia articles
   reach hn QUERY                    hacker news
   reach stackoverflow QUERY         stack overflow
+  reach snapchat USER|URL           snapchat public profile/spotlight
+  reach discord INVITE|GUILD_ID     discord server via invite/widget API
+  reach twitch CHANNEL|URL          twitch channel, video or clip
+  reach tumblr BLOG|URL             tumblr blog
+  reach vk USER|URL                 vk profile, group or post
+  reach vimeo URL|QUERY             vimeo video
+  reach weibo QUERY|URL             weibo posts
+  reach quora URL|QUERY             quora questions and answers
+  reach douyin URL|QUERY            douyin video
+  reach xiaohongshu URL|QUERY       xiaohongshu / RED post
+  reach bilibili URL|QUERY          bilibili video
+  reach medium URL|QUERY            medium profile or publication
+  reach substack URL|QUERY          substack newsletter
+  reach rss URL                     any RSS/Atom feed, or a site to autodiscover
   reach doctor                      probe every backend live
 """
 
@@ -63,6 +77,27 @@ class ReachError(Exception):
 # --------------------------------------------------------------------- http
 
 
+class _GuardedRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Re-run the public-URL check on every redirect hop.
+
+    Validating only the URL the caller passed is not enough: urllib follows
+    3xx by default, so a public host answering `302 -> http://169.254.169.254/`
+    or `-> http://127.0.0.1/` would walk straight past _validate_url into the
+    private network. Each hop is a fresh, attacker-chosen URL and gets the same
+    scrutiny as the first.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _assert_public_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _opener():
+    """A urllib opener that validates redirect targets. Built per call so tests
+    (and callers that monkeypatch the handler) see a predictable object."""
+    return urllib.request.build_opener(_GuardedRedirectHandler)
+
+
 def http(url, headers=None, timeout=TIMEOUT, accept_errors=False):
     """GET a URL. Returns (status, body_bytes). Raises ReachError on transport
     failure so every caller can treat a dead backend uniformly."""
@@ -75,8 +110,12 @@ def http(url, headers=None, timeout=TIMEOUT, accept_errors=False):
         hdrs.update(headers)
     req = urllib.request.Request(url, headers=hdrs)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _opener().open(req, timeout=timeout) as resp:
             return resp.status, resp.read(MAX_BYTES)
+    except ReachError:
+        # A blocked redirect hop. Keep the specific message; the generic
+        # handler below would bury it as "ReachError reaching <host>".
+        raise
     except urllib.error.HTTPError as e:
         try:
             body = e.read(MAX_BYTES)
@@ -114,11 +153,15 @@ def _host(url):
         return url[:40]
 
 
-def _validate_url(url):
+_BLOCKED_SUFFIXES = (".localhost", ".internal", ".local", ".home.arpa")
+
+
+def _assert_public_url(url):
     """Reject anything that is not a plain public http(s) URL.
 
     Mirrors agent_reach.utils.url.normalize_public_http_url so this tool cannot
-    become the SSRF hole that agent-reach carefully is not.
+    become the SSRF hole that agent-reach carefully is not. Applied to the
+    caller's URL *and* to every redirect hop (see _GuardedRedirectHandler).
     """
     import ipaddress
     import socket
@@ -133,19 +176,48 @@ def _validate_url(url):
     host = p.hostname
     if not host:
         raise ReachError("invalid URL: no host")
-    if host.lower() in ("localhost",) or host.lower().endswith(".localhost") \
-            or host.lower().endswith(".internal") or host.lower().endswith(".local"):
+    low = host.lower().rstrip(".")
+    if low == "localhost" or low.endswith(_BLOCKED_SUFFIXES):
         raise ReachError("only public http(s) URLs are allowed")
+    # A bare IP literal is checked directly: getaddrinfo would happily echo it
+    # back, but resolving is pointless and hides what is being asked for.
+    try:
+        ip = ipaddress.ip_address(low.strip("[]"))
+    except ValueError:
+        ip = None
+    if ip is not None:
+        _assert_public_ip(ip)
+        return url.strip()
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:
         raise ReachError(f"cannot resolve host: {host}")
+    if not infos:
+        raise ReachError(f"cannot resolve host: {host}")
     for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
-            raise ReachError("only public http(s) URLs are allowed")
+        _assert_public_ip(ipaddress.ip_address(info[4][0]))
     return url.strip()
+
+
+def _assert_public_ip(ip):
+    """Reject every address range that is not routable public internet.
+
+    is_private covers RFC1918/ULA but NOT the cloud metadata address, which is
+    link-local (169.254.169.254) — the single most valuable SSRF target in a
+    container, so it is listed explicitly as well.
+    """
+    if (ip.is_private or ip.is_loopback or ip.is_link_local
+            or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+        raise ReachError("only public http(s) URLs are allowed")
+    # IPv4-mapped/compatible IPv6 (::ffff:127.0.0.1) tunnels a private v4
+    # address through a v6 literal and is not caught by the flags above.
+    mapped = getattr(ip, "ipv4_mapped", None) or getattr(ip, "sixtofour", None)
+    if mapped is not None:
+        _assert_public_ip(mapped)
+
+
+# Kept as the name the platform handlers call.
+_validate_url = _assert_public_url
 
 
 # ------------------------------------------------------------------ html→md
@@ -205,6 +277,44 @@ def html_title(raw):
         raw = raw.decode("utf-8", errors="replace")
     m = re.search(r"<title[^>]*>(.*?)</title>", raw, re.I | re.S)
     return _html.unescape(m.group(1)).strip() if m else ""
+
+
+_META_RE = re.compile(r"<meta\b[^>]*>", re.I)
+_ATTR_RE = re.compile(r"""(property|name|content)\s*=\s*["']([^"']*)["']""", re.I)
+
+
+def og_meta(raw):
+    """Pull OpenGraph/Twitter-card metadata out of a page.
+
+    The big platforms are JavaScript shells: Twitch, VK, TikTok and Instagram
+    all return 100-300KB of HTML with essentially no body text, which is why a
+    direct fetch looks "empty" and falls through to a search index. They do all
+    render og: tags server-side, because that is what link previews consume.
+    Reading those turns a useless fetch into title + description + author.
+    """
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", errors="replace")
+    out = {}
+    for tag in _META_RE.findall(raw):
+        attrs = {k.lower(): v for k, v in _ATTR_RE.findall(tag)}
+        key = (attrs.get("property") or attrs.get("name") or "").lower()
+        val = attrs.get("content")
+        if not key or not val:
+            continue
+        if key.startswith("og:") or key.startswith("twitter:") \
+                or key in ("description", "author"):
+            out.setdefault(key.replace("twitter:", "og:"), _html.unescape(val).strip())
+    return out
+
+
+def og_summary(meta, max_chars=8000):
+    """Render og_meta() output as readable text, richest field first."""
+    parts = []
+    for k in ("og:title", "og:description", "description"):
+        v = meta.get(k)
+        if v and v not in parts:
+            parts.append(v)
+    return "\n\n".join(parts)[:max_chars]
 
 
 # -------------------------------------------------------------------- exa
@@ -690,6 +800,438 @@ def cmd_stackoverflow(a):
             "query": a.target, "results": hits}
 
 
+# ------------------------------------------------------------------- feeds
+# RSS/Atom is the highest-yield path for "any popular website": news sites,
+# Medium, Substack, Tumblr, YouTube channels and most blogs publish one, it is
+# never login-walled, and it returns full text where the HTML page is gated.
+# Parsed with the stdlib so reach.py keeps its zero-dependency guarantee.
+
+_FEED_LINK_RE = re.compile(
+    r"""<link[^>]+(?:rel=["']alternate["'][^>]*type=["']application/(?:rss|atom)\+xml["']
+        |type=["']application/(?:rss|atom)\+xml["'][^>]*rel=["']alternate["'])[^>]*>""",
+    re.I | re.X,
+)
+_HREF_RE = re.compile(r"""href=["']([^"']+)["']""", re.I)
+
+
+def _strip_ns(tag):
+    return tag.split("}", 1)[1] if "}" in tag else tag
+
+
+def parse_feed(raw, n=10, max_chars=2000):
+    """Parse an RSS 2.0 or Atom document into a uniform entry list."""
+    import xml.etree.ElementTree as ET
+
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", errors="replace")
+    # Feeds in the wild routinely carry a stray BOM or leading whitespace,
+    # which is a hard parse error for ElementTree but not for any real reader.
+    raw = raw.lstrip("﻿ \t\r\n")
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as e:
+        raise ReachError(f"not a parseable RSS/Atom feed: {e}")
+    # Well-formed HTML is also well-formed XML, so parsing alone proves
+    # nothing: an ordinary page would yield a feed with zero entries and
+    # cmd_rss would never fall through to autodiscovery — the one case
+    # autodiscovery exists for. Require a real feed root.
+    if _strip_ns(root.tag).lower() not in ("rss", "feed", "rdf"):
+        raise ReachError(
+            f"not an RSS/Atom feed (root element is <{_strip_ns(root.tag)}>)")
+
+    def text(el, *names):
+        for name in names:
+            for child in el:
+                if _strip_ns(child.tag) == name:
+                    if child.text and child.text.strip():
+                        return child.text.strip()
+                    # Atom <link href="..."/> carries no text.
+                    if name == "link" and child.get("href"):
+                        return child.get("href").strip()
+        return ""
+
+    channel = root
+    for child in root:
+        if _strip_ns(child.tag) == "channel":
+            channel = child
+            break
+
+    entries = []
+    for el in channel:
+        if _strip_ns(el.tag) not in ("item", "entry"):
+            continue
+        body = text(el, "content", "encoded", "description", "summary", "subtitle")
+        entries.append({
+            "title": _html.unescape(text(el, "title")) or "(untitled)",
+            "url": text(el, "link", "id"),
+            "author": text(el, "creator", "author", "dc:creator"),
+            "created_at": text(el, "pubDate", "published", "updated"),
+            "text": html_to_text(body, max_chars) if body else "",
+        })
+        if len(entries) >= n:
+            break
+    return {"title": _html.unescape(text(channel, "title")), "entries": entries}
+
+
+def discover_feed(page_html, base_url):
+    """Find a feed URL advertised by an ordinary HTML page."""
+    if isinstance(page_html, bytes):
+        page_html = page_html.decode("utf-8", errors="replace")
+    for tag in _FEED_LINK_RE.findall(page_html):
+        m = _HREF_RE.search(tag)
+        if m:
+            return urllib.parse.urljoin(base_url, _html.unescape(m.group(1)))
+    return None
+
+
+def cmd_rss(a):
+    """Read a feed. Accepts the feed URL directly, or any site URL — in which
+    case the page is fetched once and its advertised feed followed."""
+    url = _validate_url(a.target)
+    status, body = http(url, accept_errors=True)
+    if status != 200:
+        raise ReachError(f"HTTP {status} from {_host(url)}")
+    try:
+        feed = parse_feed(body, a.n, a.max_chars)
+    except ReachError:
+        found = discover_feed(body, url)
+        if not found:
+            raise ReachError(f"{_host(url)} is not a feed and advertises none")
+        url = _validate_url(found)
+        status, body = http(url, accept_errors=True)
+        if status != 200:
+            raise ReachError(f"HTTP {status} from the discovered feed {_host(url)}")
+        feed = parse_feed(body, a.n, a.max_chars)
+    if not feed["entries"]:
+        raise ReachError(f"feed at {_host(url)} has no entries")
+    return {"platform": "rss", "backend": "feed", "url": url,
+            "title": feed["title"], "posts": feed["entries"]}
+
+
+def _feed_first(platform, feed_url, a, search_hint, page_url=None):
+    """Feed first, then the page itself, then Exa. Used by the publishing
+    platforms whose HTML is heavy or metered but whose feed is open."""
+    attempts = []
+    if feed_url:
+        try:
+            _validate_url(feed_url)
+            status, body = http(feed_url, accept_errors=True)
+            if status == 200:
+                feed = parse_feed(body, a.n, a.max_chars)
+                if feed["entries"]:
+                    return {"platform": platform, "backend": "feed",
+                            "url": feed_url, "title": feed["title"],
+                            "posts": feed["entries"]}
+                attempts.append("feed: no entries")
+            else:
+                attempts.append(f"feed: HTTP {status}")
+        except ReachError as e:
+            attempts.append(f"feed: {e}")
+    if page_url:
+        try:
+            r = cmd_web(_ns(target=page_url, max_chars=a.max_chars))
+            # cmd_web labels its result "web"; relabel so the caller sees the
+            # platform it actually asked for, with the real backend kept.
+            r["platform"] = platform
+            r["backend"] = f"page via {r.get('backend', 'web')}"
+            return r
+        except ReachError as e:
+            attempts.append(f"page: {e}")
+    try:
+        return {"platform": platform, "backend": f"exa-search ({'; '.join(attempts)})",
+                "query": a.target,
+                "content": exa_search(f"{search_hint} {a.target}", a.n)}
+    except ReachError as e:
+        raise ReachError(f"{platform}: " + "; ".join(attempts + [f"exa: {e}"]))
+
+
+# -------------------------------------------------------- the rest of the top
+# Platforms beyond the original 17, ordered by global monthly actives. Each one
+# was probed from this container before being wired: the backend named here is
+# the one that answered, not the one the vendor documents.
+
+
+def _direct_or_exa(platform, a, search_hint, min_chars=200, auth_note=None):
+    """Fetch the page directly, fall back to Exa. For platforms that still
+    serve a server-rendered page to an anonymous client (Twitch, VK, Snapchat,
+    Tumblr all do; their APIs all want a token)."""
+    t = a.target.strip()
+    if not t.startswith("http"):
+        return {"platform": platform, "backend": "exa-search", "query": t,
+                "content": exa_search(f"{search_hint} {t}", a.n)}
+    _validate_url(t)
+    attempts = []
+    try:
+        status, body = http(t, accept_errors=True)
+        if status == 200:
+            text = html_to_text(body, a.max_chars)
+            if len(text) >= min_chars and not _blocked(text):
+                return {"platform": platform, "backend": "direct", "url": t,
+                        "title": html_title(body), "content": text}
+            # The page is a JS shell. Its og: tags are still server-rendered
+            # and carry the title/description a link preview would show —
+            # thinner than the real page, but real content from the origin,
+            # which beats a search-index substitute.
+            if not _blocked(text):
+                meta = og_meta(body)
+                summary = og_summary(meta, a.max_chars)
+                # Deliberately low: a real og:description is often one line
+                # ("shroud - Twitch / I'm back baby"). That is still the
+                # origin's own answer, and the backend label says it is
+                # metadata rather than the full page.
+                if len(summary) >= 20:
+                    return {"platform": platform, "backend": "direct (og: metadata)",
+                            "url": t, "title": meta.get("og:title") or html_title(body),
+                            "author": meta.get("og:site_name"),
+                            "thumbnail": meta.get("og:image"),
+                            "content": summary}
+            attempts.append("direct: " + ("block page" if _blocked(text)
+                                          else f"thin content ({len(text)} chars)"))
+        else:
+            attempts.append(f"direct: HTTP {status}")
+    except ReachError as e:
+        attempts.append(f"direct: {e}")
+    try:
+        text = exa_fetch([t], a.max_chars)
+        if not _blocked(text) and len(text.strip()) >= 80:
+            return {"platform": platform, "backend": f"exa-fetch ({attempts[0]})",
+                    "url": t, "content": text}
+        attempts.append("exa: block page or empty")
+    except ReachError as e:
+        attempts.append(f"exa: {e}")
+    note = f" {auth_note}" if auth_note else ""
+    raise ReachError(f"{platform}: " + "; ".join(attempts) + note)
+
+
+def cmd_snapchat(a):
+    """Public profiles and Spotlight render server-side at snapchat.com/add/<user>
+    and /@<user>; everything else on Snapchat is private by design."""
+    t = a.target.strip()
+    if t and not t.startswith("http") and " " not in t and not t.startswith("#"):
+        t = "https://www.snapchat.com/add/" + urllib.parse.quote(t.lstrip("@"))
+        a = _ns(target=t, n=a.n, max_chars=a.max_chars)
+    return _direct_or_exa("snapchat", a, "snapchat.com profile or spotlight for",
+                          auth_note="Snapchat stories between users are private; "
+                                    "only public profiles and Spotlight are readable.")
+
+
+_DISCORD_INVITE_RE = re.compile(
+    r"(?:discord\.(?:gg|com/invite)/|^)([A-Za-z0-9-]{2,32})$")
+
+
+def cmd_discord(a):
+    """Discord has two anonymous endpoints: the invite API (server name, member
+    counts, description) and the widget API (online members, voice channels)
+    for guilds that enabled it. Reading messages needs a bot token, so a
+    message-level request is answered honestly rather than half-served."""
+    t = a.target.strip()
+    if t.isdigit():
+        try:
+            d = get_json(f"https://discord.com/api/v10/guilds/{t}/widget.json")
+            chans = [c.get("name") for c in (d.get("channels") or []) if c.get("name")]
+            return {"platform": "discord", "backend": "widget api",
+                    "url": d.get("instant_invite"), "title": d.get("name"),
+                    "content": (f"{d.get('name')} — {d.get('presence_count', 0)} "
+                                f"members online\nvoice channels: "
+                                + (", ".join(chans) or "none public"))}
+        except ReachError as e:
+            raise ReachError(f"discord guild {t}: {e} (the widget must be "
+                             "enabled in Server Settings for anonymous reads)")
+    m = _DISCORD_INVITE_RE.search(t)
+    if m:
+        code = m.group(1)
+        d = get_json(f"https://discord.com/api/v10/invites/{code}?with_counts=true")
+        g = d.get("guild") or {}
+        ch = d.get("channel") or {}
+        return {"platform": "discord", "backend": "invite api",
+                "url": f"https://discord.gg/{code}", "title": g.get("name"),
+                "content": "\n".join(x for x in [
+                    g.get("description") or "",
+                    f"members: {d.get('approximate_member_count')} "
+                    f"({d.get('approximate_presence_count')} online)",
+                    f"invite channel: #{ch.get('name')}" if ch.get("name") else "",
+                ] if x)}
+    return {"platform": "discord", "backend": "exa-search",
+            "query": t, "content": exa_search(f"discord server or community {t}", a.n)}
+
+
+def cmd_twitch(a):
+    """Channel and video pages are server-rendered; yt-dlp handles VOD/clip
+    metadata. Live chat and subscriber content need a token."""
+    t = a.target.strip()
+    if t.startswith("http") and re.search(r"/(videos|clips)/", t):
+        return _ytdlp_or_exa("twitch", t, a, "twitch.tv videos about")
+    if t and not t.startswith("http") and " " not in t:
+        t = "https://www.twitch.tv/" + urllib.parse.quote(t.lstrip("@"))
+        a = _ns(target=t, n=a.n, max_chars=a.max_chars)
+    return _direct_or_exa("twitch", a, "twitch.tv channel or stream about")
+
+
+def cmd_tumblr(a):
+    """www.tumblr.com/<blog> renders server-side. The classic
+    <blog>.tumblr.com/api/read/json is rate-limited to 429 from datacenter IPs,
+    so it is tried only as a second choice."""
+    t = a.target.strip()
+    if t and not t.startswith("http") and " " not in t:
+        t = "https://www.tumblr.com/" + urllib.parse.quote(t.lstrip("@"))
+        a = _ns(target=t, n=a.n, max_chars=a.max_chars)
+    if t.startswith("http"):
+        m = re.match(r"https?://([A-Za-z0-9-]+)\.tumblr\.com/?$", t)
+        blog = m.group(1) if m else None
+        if not blog:
+            m = re.match(r"https?://(?:www\.)?tumblr\.com/([A-Za-z0-9-]+)/?$", t)
+            blog = m.group(1) if m else None
+        if blog:
+            try:
+                return _feed_first("tumblr", f"https://{blog}.tumblr.com/rss", a,
+                                   "tumblr.com blog", page_url=t)
+            except ReachError:
+                pass
+    return _direct_or_exa("tumblr", a, "tumblr.com posts or blog about")
+
+
+def cmd_vk(a):
+    """VK serves public walls, groups and profiles to anonymous clients."""
+    t = a.target.strip()
+    if t and not t.startswith("http") and " " not in t:
+        t = "https://vk.com/" + urllib.parse.quote(t.lstrip("@"))
+        a = _ns(target=t, n=a.n, max_chars=a.max_chars)
+    return _direct_or_exa("vk", a, "vk.com profile, group or post about")
+
+
+def cmd_vimeo(a):
+    """oEmbed carries title/author/description with no key; yt-dlp fills in
+    anything oEmbed omits."""
+    t = a.target.strip()
+    if t.startswith("http"):
+        _validate_url(t)
+        try:
+            d = get_json("https://vimeo.com/api/oembed.json?url="
+                         + urllib.parse.quote(t, safe=""))
+            return {"platform": "vimeo", "backend": "oembed", "url": t,
+                    "title": d.get("title"), "uploader": d.get("author_name"),
+                    "duration": d.get("duration"), "views": d.get("play_count"),
+                    "upload_date": d.get("upload_date"),
+                    "content": (d.get("description")
+                                or d.get("title") or "")[:a.max_chars]}
+        except ReachError as first:
+            try:
+                return _ytdlp_or_exa("vimeo", t, a, "vimeo.com videos about")
+            except ReachError as e:
+                raise ReachError(f"vimeo: oembed ({first}); {e}")
+    return {"platform": "vimeo", "backend": "exa-search", "query": t,
+            "content": exa_search(f"vimeo.com videos about {t}", a.n)}
+
+
+def cmd_weibo(a):
+    """Weibo's mobile API answers `ok: -100` with an SSO redirect for anonymous
+    clients on most containers. Detect that explicitly — a caller deserves
+    "login required" rather than an empty result — and fall through to Exa."""
+    t = a.target.strip()
+    attempts = []
+    if not t.startswith("http"):
+        q = urllib.parse.quote(t)
+        url = ("https://m.weibo.cn/api/container/getIndex?containerid="
+               f"100103type%3D1%26q%3D{q}")
+        try:
+            d = get_json(url, headers={"Referer": "https://m.weibo.cn/",
+                                       "X-Requested-With": "XMLHttpRequest"})
+            if d.get("ok") == 1:
+                cards = (d.get("data") or {}).get("cards") or []
+                posts = []
+                for c in cards:
+                    blog = c.get("mblog") or {}
+                    if blog.get("text"):
+                        posts.append({
+                            "author": (blog.get("user") or {}).get("screen_name"),
+                            "created_at": blog.get("created_at"),
+                            "likes": blog.get("attitudes_count"),
+                            "text": html_to_text(blog["text"], 800)})
+                    if len(posts) >= a.n:
+                        break
+                if posts:
+                    return {"platform": "weibo", "backend": "m.weibo.cn api",
+                            "query": t, "posts": posts}
+                attempts.append("api: no posts in response")
+            else:
+                attempts.append("api: login required (ok=%s)" % d.get("ok"))
+        except ReachError as e:
+            attempts.append(f"api: {e}")
+    else:
+        _validate_url(t)
+    note = "; ".join(attempts)
+    return {"platform": "weibo",
+            "backend": f"exa-search ({note})" if note else "exa-search",
+            "query": t,
+            "content": exa_search(f"weibo.com 微博 posts about {t}", a.n)}
+
+
+def cmd_quora(a):
+    return _exa_only("quora", a, "quora.com questions and answers about",
+                     "Quora fronts every page with a Cloudflare challenge for "
+                     "anonymous clients; the search index is the only read path.")
+
+
+def cmd_douyin(a):
+    return _exa_only("douyin", a, "douyin.com 抖音 videos about",
+                     "Douyin requires an app-signed request for video detail.")
+
+
+def cmd_xiaohongshu(a):
+    return _exa_only("xiaohongshu", a, "xiaohongshu.com 小红书 RED posts about",
+                     "Xiaohongshu needs a logged-in cookie export; see "
+                     "docs/agent-reach.md to enable it.")
+
+
+def cmd_bilibili(a):
+    """The `bili` CLI (installed by install-agent-reach.sh) carries the headers
+    and signing Bilibili's web API demands; a bare API call answers 412."""
+    t = a.target.strip()
+    if t.startswith("http"):
+        return _ytdlp_or_exa("bilibili", t, a, "bilibili.com videos about")
+    if shutil.which("bili"):
+        try:
+            p = subprocess.run(["bili", "search", t, "--type", "video",
+                                "-n", str(a.n)],
+                               capture_output=True, text=True, timeout=90)
+            if p.returncode == 0 and p.stdout.strip():
+                return {"platform": "bilibili", "backend": "bili cli",
+                        "query": t, "content": p.stdout.strip()[:a.max_chars]}
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+    return {"platform": "bilibili", "backend": "exa-search", "query": t,
+            "content": exa_search(f"bilibili.com B站 videos about {t}", a.n)}
+
+
+def _publication(platform, a, feed_builder, search_hint):
+    """Medium and Substack: the feed is open where the page is metered."""
+    t = a.target.strip()
+    if not t.startswith("http"):
+        return {"platform": platform, "backend": "exa-search", "query": t,
+                "content": exa_search(f"{search_hint} {t}", a.n)}
+    _validate_url(t)
+    return _feed_first(platform, feed_builder(t), a, search_hint, page_url=t)
+
+
+def cmd_medium(a):
+    def feed(url):
+        p = urllib.parse.urlparse(url)
+        parts = [x for x in p.path.split("/") if x]
+        if p.netloc.endswith("medium.com") and parts and parts[0].startswith("@"):
+            return f"https://medium.com/feed/{parts[0]}"
+        if p.netloc not in ("medium.com", "www.medium.com"):
+            return f"{p.scheme}://{p.netloc}/feed"
+        return f"https://medium.com/feed/{parts[0]}" if parts else None
+    return _publication("medium", a, feed, "medium.com articles about")
+
+
+def cmd_substack(a):
+    def feed(url):
+        p = urllib.parse.urlparse(url)
+        return f"{p.scheme}://{p.netloc}/feed"
+    return _publication("substack", a, feed, "substack.com newsletter about")
+
+
 # ------------------------------------------------------------------ doctor
 
 PROBES = [
@@ -717,6 +1259,23 @@ PROBES = [
     ("hn",         lambda: cmd_hn(_ns(target="anthropic", n=2))),
     ("stackoverflow", lambda: cmd_stackoverflow(_ns(target="python asyncio",
                                                     site=None, n=2))),
+    ("rss",        lambda: cmd_rss(_ns(target="https://hnrss.org/frontpage", n=2))),
+    ("snapchat",   lambda: cmd_snapchat(_ns(target="teamsnapchat", n=2))),
+    ("discord",    lambda: cmd_discord(_ns(target="python", n=2))),
+    ("twitch",     lambda: cmd_twitch(_ns(target="shroud", n=2))),
+    ("tumblr",     lambda: cmd_tumblr(_ns(target="staff", n=2))),
+    ("vk",         lambda: cmd_vk(_ns(target="durov", n=2))),
+    ("vimeo",      lambda: cmd_vimeo(_ns(
+        target="https://vimeo.com/347119375", n=2))),
+    ("weibo",      lambda: cmd_weibo(_ns(target="ai", n=2))),
+    ("quora",      lambda: cmd_quora(_ns(target="what is machine learning", n=2))),
+    ("douyin",     lambda: cmd_douyin(_ns(target="technology", n=2))),
+    ("xiaohongshu", lambda: cmd_xiaohongshu(_ns(target="travel tips", n=2))),
+    ("bilibili",   lambda: cmd_bilibili(_ns(target="python", n=2))),
+    ("medium",     lambda: cmd_medium(_ns(
+        target="https://medium.com/@medium", n=2))),
+    ("substack",   lambda: cmd_substack(_ns(
+        target="https://bigtechnology.substack.com", n=2))),
 ]
 
 
@@ -790,13 +1349,26 @@ def render(r):
     if r.get("content"):
         lines.append(r["content"])
     for item in r.get("posts", []) or []:
-        # Telegram yields plain strings, the API-backed platforms yield dicts.
+        # Telegram yields plain strings, the API-backed platforms yield dicts,
+        # and feeds add a title/link on top of the same shape.
         if isinstance(item, str):
             lines.append(f"- {item}\n")
             continue
         who = item.get("author") or ""
-        when = (item.get("created_at") or "")[:19]
+        # ISO-8601 truncates cleanly at the seconds field; RFC-822 feed dates
+        # ("Sat, 08 Aug 2026 00:11:02 +0000") do not, so keep those whole.
+        raw_when = item.get("created_at") or ""
+        when = raw_when[:19] if re.match(r"^\d{4}-\d\d-\d\d", raw_when) else raw_when[:31]
         stats = f"  ({item.get('likes')} likes)" if item.get("likes") else ""
+        if item.get("title"):
+            head = f"- {item['title']}"
+            if who or when:
+                head += f"\n  {('@' + who) if who else ''} {when}{stats}".rstrip()
+            if item.get("url"):
+                head += f"\n  {item['url']}"
+            body = (item.get("text") or "").strip()
+            lines.append(head + (f"\n  {body}\n" if body else "\n"))
+            continue
         lines.append(f"- @{who} {when}{stats}\n  {item.get('text', '')}\n")
     for item in r.get("results", []) or []:
         lines.append(f"- {item.get('title')}\n  {item.get('url')}")
@@ -856,10 +1428,37 @@ def build_parser():
     s = add("stackoverflow", cmd_stackoverflow, "search query")
     s.add_argument("--site", help="stackexchange site (default stackoverflow)")
 
+    add("rss", cmd_rss, "feed URL, or any site URL to auto-discover its feed")
+    add("snapchat", cmd_snapchat, "username, profile URL or search query")
+    add("discord", cmd_discord, "invite link/code, guild ID, or search query")
+    add("twitch", cmd_twitch, "channel name, video/clip URL, or search query")
+    add("tumblr", cmd_tumblr, "blog name, blog URL, or search query")
+    add("vk", cmd_vk, "username, profile/group URL, or search query")
+    add("vimeo", cmd_vimeo, "video URL or search query")
+    add("weibo", cmd_weibo, "search query or post URL")
+    add("quora", cmd_quora, "question URL or search query")
+    add("douyin", cmd_douyin, "video URL or search query")
+    add("xiaohongshu", cmd_xiaohongshu, "post URL or search query")
+    add("bilibili", cmd_bilibili, "video URL or search query")
+    add("medium", cmd_medium, "profile/publication URL or search query")
+    add("substack", cmd_substack, "newsletter URL or search query")
+
     d = sub.add_parser("doctor", help="probe every backend live")
     d.add_argument("--json", action="store_true")
     d.set_defaults(func=cmd_doctor, target=None)
     return p
+
+
+# Phrases a handler uses when the wall is a credential rather than a dead
+# backend. Callers branch on exit code 4 to decide whether asking the user for
+# an account would help, so this is worth more than a single substring.
+_AUTH_MARKERS = ("login", "log in", "logged-in", "sign in", "signin",
+                 "credential", "cookie", "authenticat", "needs an account")
+
+
+def _is_auth_failure(msg):
+    low = msg.lower()
+    return any(m in low for m in _AUTH_MARKERS)
 
 
 def main(argv=None):
@@ -868,9 +1467,18 @@ def main(argv=None):
         result = args.func(args)
     except ReachError as e:
         print(f"reach: {e}", file=sys.stderr)
-        return EXIT_NEEDS_AUTH if "login" in str(e).lower() else EXIT_FAILED
+        return EXIT_NEEDS_AUTH if _is_auth_failure(str(e)) else EXIT_FAILED
     except KeyboardInterrupt:
         return 130
+    except Exception as e:
+        # Upstream JSON changes shape without warning and the handlers walk it
+        # with .get() chains and the occasional direct index. A traceback and a
+        # bare exit 1 would break the documented contract for every caller that
+        # branches on the exit code, so report it in the same shape as any
+        # other backend failure.
+        print(f"reach: {type(e).__name__} while handling the response "
+              f"from {getattr(args, 'cmd', '?')}: {e}", file=sys.stderr)
+        return EXIT_FAILED
 
     if getattr(args, "json", False):
         print(json.dumps(result, ensure_ascii=False, indent=2))
