@@ -1,0 +1,115 @@
+/* Report styling. Kept separate from the app chrome so a downloaded report
+ * carries exactly this and nothing else — and so it renders identically inside
+ * the tool and as a standalone file the client opens six months later. */
+
+.rep{--r-ground:#fcfcfd;--r-surface:#f3f5f8;--r-sunk:#e9edf2;--r-ink:#151a21;
+--r-ink-2:#4b5563;--r-ink-3:#7a8595;--r-rule:#dee3ea;--r-accent:#2f5fd0;
+--r-critical:#b3402e;--r-critical-soft:#fbeae7;--r-major:#9a6414;
+--r-major-soft:#fbf1df;--r-clear:#1a7a55;--r-clear-soft:#e6f4ee;
+--ck-c0:#2f5fd0;--ck-c1:#e07b39;--ck-c2:#1f9d76;--ck-c3:#a855c9;
+--ck-c4:#d2455f;--ck-c5:#5a7183;--ck-c6:#8a7a1f;--ck-c7:#2ba3c4;
+--ck-surface:#e9edf2;
+--r-serif:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;
+--r-sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--r-mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
+color:var(--r-ink);font-family:var(--r-serif);font-size:16.5px;line-height:1.62}
+
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .rep{
+--r-ground:#0e1115;--r-surface:#161a20;--r-sunk:#1d232b;--r-ink:#e8ecf2;
+--r-ink-2:#a2acba;--r-ink-3:#79838f;--r-rule:#262d36;--r-accent:#7ea3f4;
+--r-critical:#ef7f6d;--r-critical-soft:#2d1a16;--r-major:#d9a441;
+--r-major-soft:#2a2114;--r-clear:#4cbc90;--r-clear-soft:#12271f;
+--ck-c0:#7ea3f4;--ck-c1:#f5a05e;--ck-c2:#4fc9a1;--ck-c3:#c98ae0;
+--ck-c4:#f0778c;--ck-c5:#93a3b5;--ck-c6:#c9b64e;--ck-c7:#5ec8e6;
+--ck-surface:#1d232b}}
+:root[data-theme="dark"] .rep{
+--r-ground:#0e1115;--r-surface:#161a20;--r-sunk:#1d232b;--r-ink:#e8ecf2;
+--r-ink-2:#a2acba;--r-ink-3:#79838f;--r-rule:#262d36;--r-accent:#7ea3f4;
+--r-critical:#ef7f6d;--r-critical-soft:#2d1a16;--r-major:#d9a441;
+--r-major-soft:#2a2114;--r-clear:#4cbc90;--r-clear-soft:#12271f;
+--ck-c0:#7ea3f4;--ck-c1:#f5a05e;--ck-c2:#4fc9a1;--ck-c3:#c98ae0;
+--ck-c4:#f0778c;--ck-c5:#93a3b5;--ck-c6:#c9b64e;--ck-c7:#5ec8e6;
+--ck-surface:#1d232b}
+
+body.standalone{margin:0;background:var(--r-ground)}
+body.standalone .rep{max-width:1000px;margin:0 auto;padding:0 26px 80px}
+
+.rep .rep-head{padding:44px 0 26px;border-bottom:2px solid var(--r-ink)}
+.rep .eyebrow{font-family:var(--r-mono);font-size:11px;letter-spacing:.14em;
+text-transform:uppercase;color:var(--r-ink-3);margin-bottom:14px}
+.rep h1{font-family:var(--r-sans);font-weight:660;letter-spacing:-.022em;
+font-size:clamp(26px,3.8vw,38px);line-height:1.1;margin:0;max-width:24ch;
+text-wrap:balance}
+.rep .meta{display:flex;flex-wrap:wrap;gap:0 26px;margin-top:18px;
+font-family:var(--r-mono);font-size:11.5px;letter-spacing:.04em;
+text-transform:uppercase;color:var(--r-ink-3)}
+.rep .meta b{color:var(--r-ink-2);font-weight:500}
+
+.rep section{margin-top:48px}
+.rep h2{font-family:var(--r-sans);font-size:12px;font-weight:660;
+letter-spacing:.13em;text-transform:uppercase;color:var(--r-ink-3);
+margin:0 0 16px;padding-bottom:9px;border-bottom:1px solid var(--r-rule)}
+
+.rep .f{display:grid;grid-template-columns:92px 1fr;gap:0 18px;padding:17px 0;
+border-bottom:1px solid var(--r-rule)}
+.rep .f:last-child{border-bottom:0}
+.rep .sev{font-family:var(--r-mono);font-size:10px;letter-spacing:.1em;
+text-transform:uppercase;padding:4px 8px;border-radius:2px;height:fit-content;
+text-align:center;border:1px solid}
+.rep .sev.critical{color:var(--r-critical);background:var(--r-critical-soft);
+border-color:var(--r-critical)}
+.rep .sev.major{color:var(--r-major);background:var(--r-major-soft);
+border-color:var(--r-major)}
+.rep .sev.note{color:var(--r-ink-3);background:var(--r-sunk);border-color:var(--r-rule)}
+.rep .sev.clear{color:var(--r-clear);background:var(--r-clear-soft);
+border-color:var(--r-clear)}
+.rep .f .t{font-family:var(--r-sans);font-weight:640;font-size:16px;margin-bottom:5px}
+.rep .f .b{color:var(--r-ink-2);font-size:15.5px;max-width:74ch}
+
+.rep .readout{display:grid;gap:1px;background:var(--r-rule);
+border:1px solid var(--r-rule);grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+margin-top:6px}
+.rep .cell{background:var(--r-ground);padding:16px 18px}
+.rep .cell .l{font-family:var(--r-mono);font-size:10.5px;letter-spacing:.1em;
+text-transform:uppercase;color:var(--r-ink-3);margin-bottom:6px}
+.rep .cell .v{font-family:var(--r-sans);font-size:25px;font-weight:640;
+letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.rep .cell .d{font-family:var(--r-mono);font-size:11px;color:var(--r-ink-3);margin-top:4px}
+
+.rep .card{background:var(--r-surface);border:1px solid var(--r-rule);
+border-radius:4px;padding:8px;overflow-x:auto;margin-top:16px}
+.rep .card svg{display:block;max-width:100%;height:auto}
+
+.rep .tw{overflow-x:auto;border:1px solid var(--r-rule);border-radius:4px;margin-top:16px}
+.rep table{width:100%;border-collapse:collapse;font-family:var(--r-mono);font-size:12.5px}
+.rep th,.rep td{padding:10px 14px;text-align:left;
+border-bottom:1px solid var(--r-rule);white-space:nowrap}
+.rep th.num,.rep td.num{text-align:right;font-variant-numeric:tabular-nums}
+.rep tr:last-child td{border-bottom:0}
+.rep thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+color:var(--r-ink-3);font-weight:500;background:var(--r-surface)}
+
+.rep .rnote{background:var(--r-surface);border-left:3px solid var(--r-accent);
+border-radius:0 4px 4px 0;padding:13px 17px;font-size:15px;color:var(--r-ink-2);
+margin-top:16px;max-width:78ch}
+.rep .gaps{background:var(--r-surface);border:1px solid var(--r-rule);
+border-radius:4px;padding:18px 24px;margin-top:6px}
+.rep .gaps ul{margin:0;padding-left:20px;color:var(--r-ink-2);font-size:15.5px}
+.rep .gaps li{margin-bottom:8px}
+
+.rep .rep-foot{margin-top:56px;padding-top:20px;border-top:1px solid var(--r-rule);
+font-family:var(--r-mono);font-size:11.5px;color:var(--r-ink-3);line-height:1.8}
+.rep .credit{color:var(--r-accent)}
+
+.rep .ck-t{fill:var(--r-ink);font-family:var(--r-sans);font-size:14px;font-weight:600}
+.rep .ck-s{fill:var(--r-ink-3);font-family:var(--r-sans);font-size:11.5px}
+.rep .ck-l{fill:var(--r-ink-3);font-family:var(--r-mono);font-size:10.5px}
+.rep .ck-v{fill:var(--r-ink);font-family:var(--r-mono);font-size:11px;font-weight:600}
+.rep .ck-g{stroke:var(--r-rule);stroke-width:1}
+.rep .ck-a{stroke:var(--r-ink-3);stroke-width:1}
+.rep .ck-ln{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+
+@media print{
+  .rep .card,.rep .tw{overflow:visible}
+  .rep section{break-inside:avoid}
+}

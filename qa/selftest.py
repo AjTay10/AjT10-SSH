@@ -1476,6 +1476,57 @@ def t_sample_is_deterministic():
 
 
 # ==========================================================================
+# studio — the browser tool
+# ==========================================================================
+
+def t_studio_build_is_current():
+    """Editing engine.js without rebuilding would ship a tool that differs
+    from its own source."""
+    rc, out, err = run(["studio/build.py", "--check"])
+    assert rc == 0, f"studio/index.html is stale:\n{err}"
+
+
+def t_studio_is_self_contained():
+    """A single file that phones home is not a single file."""
+    p = os.path.join(ROOT, "studio", "index.html")
+    assert os.path.isfile(p), "studio/index.html missing"
+    html = open(p, encoding="utf-8").read()
+    scan = html.replace('xmlns="http://www.w3.org/2000/svg"', "")
+    for bad in ("http://", "https://", "cdn.", "fetch(", "XMLHttpRequest",
+                "@import", "<link", "sendBeacon"):
+        assert bad not in scan, f"studio/index.html reaches the network: {bad}"
+
+
+def t_studio_states_its_limits():
+    html = open(os.path.join(ROOT, "studio", "index.html"), encoding="utf-8").read()
+    for required in ("not a valuation", "never transmitted", "Descriptive statistics"):
+        assert required in html, f"studio/index.html omits {required!r}"
+
+
+def t_studio_no_fake_billing():
+    """The branding field is disabled because there is no billing. If that
+    ever changes, it must be a deliberate edit, not a drift."""
+    app = open(os.path.join(ROOT, "studio", "app.js"), encoding="utf-8").read()
+    tpl = open(os.path.join(ROOT, "studio", "template.html"), encoding="utf-8").read()
+    assert "ATTRIBUTION_REQUIRED = true" in app, \
+        "attribution switch flipped without billing existing"
+    assert 'id="brand"' in tpl and "disabled" in tpl, \
+        "branding input should stay disabled while there is no billing"
+
+
+def t_studio_parity_fixture_is_current():
+    """parity_expected.json must reflect what tools/ computes right now."""
+    expected = os.path.join(ROOT, "studio", "parity_expected.json")
+    assert os.path.isfile(expected), "run python3 studio/parity_expected.py"
+    before = open(expected, encoding="utf-8").read()
+    rc, out, err = run(["studio/parity_expected.py"])
+    assert rc == 0, err
+    after = open(expected, encoding="utf-8").read()
+    assert before == after, \
+        "parity_expected.json is stale — tools/ changed. Re-run parity.mjs too."
+
+
+# ==========================================================================
 # validator must actually catch things
 # ==========================================================================
 

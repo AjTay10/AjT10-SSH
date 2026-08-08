@@ -67,6 +67,20 @@ jobs:
           python3 business/sample.py --out "$RUNNER_TEMP/sample"
           test -s "$RUNNER_TEMP/sample/report.html"
 
+      - name: Studio build is current
+        run: |
+          python3 studio/build.py --check
+          python3 studio/parity_expected.py
+          git diff --exit-code studio/parity_expected.json
+
+      - name: Studio engine agrees with the Python tools
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run parity check
+        run: node studio/parity.mjs
+
       - name: Installer is safe to run twice
         run: |
           export CLAUDE_HOME="$RUNNER_TEMP/claude"

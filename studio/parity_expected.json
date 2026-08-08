@@ -1,0 +1,351 @@
+{
+  "pages": {
+    "band": "steeply unequal \u2014 a power law",
+    "effective_n": 20.57486999284074,
+    "effective_pct": 0.060336862149093076,
+    "fragility": {
+      "drop_top1": 18.79468772626343,
+      "drop_top3": 31.322689573512736
+    },
+    "gini": 0.7041618175948023,
+    "hhi": 0.04860298025445417,
+    "hhi_normalized": 0.0458047537257908,
+    "items": 341,
+    "shares": {
+      "top1": 0.1879468772626343,
+      "top10": 0.4524293028871325,
+      "top10pct": 0.6287807528077921,
+      "top3": 0.31322689573512735,
+      "top5": 0.371716858924389
+    },
+    "top1_x_even_share": 64.08988514655829,
+    "top_names": [
+      "/best-espresso-machines-2022",
+      "/best-226",
+      "/best-026",
+      "/best-130",
+      "/guide-240",
+      "/how-to-315",
+      "/how-to-163",
+      "/best-294",
+      "/best-162",
+      "/review-277"
+    ],
+    "top_values": [
+      210000.0,
+      81379.0,
+      58601.0,
+      38821.0,
+      26532.0,
+      20312.0,
+      18813.0,
+      17696.0,
+      17234.0,
+      16128.0
+    ],
+    "total": 1117337.0
+  },
+  "primitives": {
+    "gini_equal": 0.0,
+    "gini_extreme": 0.720873786407767,
+    "hhi_equal": 0.25,
+    "mad_flat": 0.0,
+    "mad_mixed": 1.4826,
+    "median_even": 2.5,
+    "median_odd": 3,
+    "theil_sen_clean": 2.0,
+    "theil_sen_outlier": 2.0
+  },
+  "replacement": {
+    "new_median": 478.0,
+    "new_periods": [
+      "2025"
+    ],
+    "old_median": 3781.0,
+    "old_periods": [
+      "2021"
+    ],
+    "ratio": 0.12642158159217137
+  },
+  "revenue": {
+    "effective_n": 2.8621875638209637,
+    "gini": 0.5811425487626243,
+    "items": 7,
+    "shares": {
+      "top1": 0.5288720992984349,
+      "top3": 0.875876956287102,
+      "top5": 0.963302752293578
+    },
+    "top_names": [
+      "Sponsor: BrewCo",
+      "Amazon Associates",
+      "Mediavine display",
+      "Sponsor: GrindTech",
+      "Newsletter sponsorship",
+      "Affiliate: KitchenPro",
+      "Digital product"
+    ],
+    "total": 18530.0
+  },
+  "trend": {
+    "changepoints": [
+      {
+        "date": "2023-07-01",
+        "direction": "up",
+        "points": 2,
+        "stat": 9.5,
+        "until": "2023-09-01"
+      },
+      {
+        "date": "2025-02-01",
+        "direction": "down",
+        "points": 3,
+        "stat": -10.46,
+        "until": "2025-04-01"
+      }
+    ],
+    "points": [
+      {
+        "baseline": null,
+        "date": "2023-01-01",
+        "flag": null,
+        "z": null
+      },
+      {
+        "baseline": null,
+        "date": "2023-02-01",
+        "flag": null,
+        "z": null
+      },
+      {
+        "baseline": null,
+        "date": "2023-03-01",
+        "flag": null,
+        "z": null
+      },
+      {
+        "baseline": null,
+        "date": "2023-04-01",
+        "flag": null,
+        "z": null
+      },
+      {
+        "baseline": null,
+        "date": "2023-05-01",
+        "flag": null,
+        "z": null
+      },
+      {
+        "baseline": null,
+        "date": "2023-06-01",
+        "flag": null,
+        "z": null
+      },
+      {
+        "baseline": 45938.2,
+        "date": "2023-07-01",
+        "flag": "spike",
+        "z": 33.713
+      },
+      {
+        "baseline": 48184.0,
+        "date": "2023-08-01",
+        "flag": null,
+        "z": -1.479
+      },
+      {
+        "baseline": 47859.3,
+        "date": "2023-09-01",
+        "flag": "spike",
+        "z": 5.796
+      },
+      {
+        "baseline": 49765.75,
+        "date": "2023-10-01",
+        "flag": null,
+        "z": 1.104
+      },
+      {
+        "baseline": 52315.5,
+        "date": "2023-11-01",
+        "flag": null,
+        "z": 0.338
+      },
+      {
+        "baseline": 54159.1667,
+        "date": "2023-12-01",
+        "flag": null,
+        "z": -1.454
+      },
+      {
+        "baseline": 54099.8333,
+        "date": "2024-01-01",
+        "flag": null,
+        "z": -1.507
+      },
+      {
+        "baseline": 54464.125,
+        "date": "2024-02-01",
+        "flag": null,
+        "z": 0.0
+      },
+      {
+        "baseline": 55312.0833,
+        "date": "2024-03-01",
+        "flag": null,
+        "z": -0.202
+      },
+      {
+        "baseline": 56048.3333,
+        "date": "2024-04-01",
+        "flag": null,
+        "z": 0.129
+      },
+      {
+        "baseline": 57053.5,
+        "date": "2024-05-01",
+        "flag": null,
+        "z": -1.391
+      },
+      {
+        "baseline": 57364.2222,
+        "date": "2024-06-01",
+        "flag": null,
+        "z": -0.23
+      },
+      {
+        "baseline": 57743.2045,
+        "date": "2024-07-01",
+        "flag": null,
+        "z": 2.762
+      },
+      {
+        "baseline": 59193.7083,
+        "date": "2024-08-01",
+        "flag": null,
+        "z": -0.079
+      },
+      {
+        "baseline": 59571.1429,
+        "date": "2024-09-01",
+        "flag": null,
+        "z": 1.111
+      },
+      {
+        "baseline": 60796.7857,
+        "date": "2024-10-01",
+        "flag": null,
+        "z": -1.793
+      },
+      {
+        "baseline": 61415.7643,
+        "date": "2024-11-01",
+        "flag": null,
+        "z": 2.99
+      },
+      {
+        "baseline": 63440.2,
+        "date": "2024-12-01",
+        "flag": null,
+        "z": 0.731
+      },
+      {
+        "baseline": 64883.1389,
+        "date": "2025-01-01",
+        "flag": null,
+        "z": -1.456
+      },
+      {
+        "baseline": 64593.3333,
+        "date": "2025-02-01",
+        "flag": "drop",
+        "z": -28.978
+      },
+      {
+        "baseline": 64428.05,
+        "date": "2025-03-01",
+        "flag": "drop",
+        "z": -20.431
+      },
+      {
+        "baseline": 63404.0,
+        "date": "2025-04-01",
+        "flag": "drop",
+        "z": -12.2
+      },
+      {
+        "baseline": 56800.8333,
+        "date": "2025-05-01",
+        "flag": "drop",
+        "z": -3.119
+      },
+      {
+        "baseline": 43203.75,
+        "date": "2025-06-01",
+        "flag": null,
+        "z": -0.478
+      },
+      {
+        "baseline": 32169.4,
+        "date": "2025-07-01",
+        "flag": null,
+        "z": 0.747
+      },
+      {
+        "baseline": 32685.825,
+        "date": "2025-08-01",
+        "flag": null,
+        "z": 0.369
+      },
+      {
+        "baseline": 33366.45,
+        "date": "2025-09-01",
+        "flag": null,
+        "z": 0.14
+      },
+      {
+        "baseline": 33238.75,
+        "date": "2025-10-01",
+        "flag": null,
+        "z": 0.289
+      }
+    ]
+  },
+  "vintages": [
+    {
+      "items": 47,
+      "median_per_item": 3781.0,
+      "period": "2021",
+      "share": 0.24909494628746742,
+      "total": 278323.0
+    },
+    {
+      "items": 51,
+      "median_per_item": 2264.0,
+      "period": "2022",
+      "share": 0.3528281977594942,
+      "total": 394228.0
+    },
+    {
+      "items": 65,
+      "median_per_item": 1185.0,
+      "period": "2023",
+      "share": 0.17083028665478722,
+      "total": 190875.0
+    },
+    {
+      "items": 85,
+      "median_per_item": 624.0,
+      "period": "2024",
+      "share": 0.10208916378854366,
+      "total": 114068.0
+    },
+    {
+      "items": 93,
+      "median_per_item": 478.0,
+      "period": "2025",
+      "share": 0.12515740550970747,
+      "total": 139843.0
+    }
+  ]
+}

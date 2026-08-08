@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reportcraft — turn an analytics export into a client-ready report</title>
+<meta name="description" content="Drop a CSV export, get a report that says what the numbers rest on and what they cannot establish. Runs entirely in your browser; nothing is uploaded.">
+<style>{{STYLE}}</style>
+<style id="report-style">{{REPORT_STYLE}}</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div class="logo">Reportcraft</div>
+  <h1 class="title">Turn a messy export into a report you can hand a client.</h1>
+  <p class="lede">Drop in a CSV. Get concentration, decay, and whether the trend
+  is real — plus an honest list of what the data cannot establish. Nothing is
+  uploaded; the analysis runs in this tab.</p>
+  <div class="trust">
+    <span class="chip">No upload · no account</span>
+    <span class="chip">Works offline</span>
+    <span class="chip">Download as one file</span>
+  </div>
+</header>
+
+<h2 class="step">1 · Add what you have</h2>
+<div class="slots">
+
+  <div class="slot" id="pages-box" tabindex="0" role="button" aria-label="Add an item breakdown CSV">
+    <div class="h">Item breakdown</div>
+    <div class="d">One row per page, post, or product. Add a publish date and
+    you also get decay analysis.</div>
+    <div class="n" id="pages-name"></div>
+    <input type="file" id="pages-input" accept=".csv,text/csv">
+    <div class="fields" id="pages-fields" hidden>
+      <label>Item column<select id="pages-item"></select></label>
+      <label>Value column<select id="pages-value"></select></label>
+      <label>Publish date (optional)<select id="pages-date"></select></label>
+    </div>
+  </div>
+
+  <div class="slot" id="revenue-box" tabindex="0" role="button" aria-label="Add a revenue by source CSV">
+    <div class="h">Revenue by source</div>
+    <div class="d">One row per sponsor, advertiser, affiliate, or product. This
+    is where dependence usually hides.</div>
+    <div class="n" id="revenue-name"></div>
+    <input type="file" id="revenue-input" accept=".csv,text/csv">
+    <div class="fields" id="revenue-fields" hidden>
+      <label>Source column<select id="revenue-item"></select></label>
+      <label>Amount column<select id="revenue-value"></select></label>
+    </div>
+  </div>
+
+  <div class="slot" id="traffic-box" tabindex="0" role="button" aria-label="Add a time series CSV">
+    <div class="h">Time series</div>
+    <div class="d">One row per day, week, or month. Six periods minimum, twelve
+    or more preferred.</div>
+    <div class="n" id="traffic-name"></div>
+    <input type="file" id="traffic-input" accept=".csv,text/csv">
+    <div class="fields" id="traffic-fields" hidden>
+      <label>Date column<select id="traffic-date"></select></label>
+      <label>Value column<select id="traffic-value"></select></label>
+    </div>
+  </div>
+
+</div>
+
+<h2 class="step">2 · Label it</h2>
+<div class="meta-grid">
+  <label>Report title
+    <input type="text" id="client" placeholder="e.g. Q3 performance — Acme">
+  </label>
+  <label>Prepared for
+    <input type="text" id="prepared" placeholder="e.g. the board, a client, a buyer">
+  </label>
+  <label>Vintage grouping
+    <select id="period">
+      <option value="year" selected>Year</option>
+      <option value="quarter">Quarter</option>
+      <option value="month">Month</option>
+    </select>
+  </label>
+  <label>Your name in the footer
+    <input type="text" id="brand" placeholder="Free version credits Reportcraft" disabled>
+    <span class="hint">Custom footer branding is the paid upgrade. There is no
+    billing in this build, so the field is disabled rather than pretending.</span>
+  </label>
+</div>
+
+<div class="actions">
+  <button id="build" disabled>Build report</button>
+  <button id="download" class="ghost" disabled>Download as one file</button>
+</div>
+
+<div id="notes" role="status" aria-live="polite"></div>
+
+<div id="report-wrap" hidden>
+  <div class="rep" id="report"></div>
+</div>
+
+<footer class="site">
+  Runs entirely in your browser. Files are read locally and never transmitted —
+  there is no server to transmit them to.<br>
+  Descriptive statistics only. Not a valuation, an audit, or investment advice.<br>
+  &copy; <span id="year"></span> Reportcraft · the statistics are cross-checked
+  against a reference implementation on every build.
+</footer>
+
+</div>
+<script>{{ENGINE}}</script>
+<script>{{CHARTS}}</script>
+<script>{{APP}}</script>
+</body>
+</html>

@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reportcraft — turn an analytics export into a client-ready report</title>
+<meta name="description" content="Drop a CSV export, get a report that says what the numbers rest on and what they cannot establish. Runs entirely in your browser; nothing is uploaded.">
+<style>/* Tool chrome. The report's own styling lives in report.css so a downloaded
+ * report carries only what it needs and nothing of the app around it. */
+
+:root{
+  --ground:#fcfbf9;--surface:#f2f0ec;--sunk:#e8e5df;--ink:#191713;
+  --ink-2:#57524a;--ink-3:#8b8478;--rule:#ded9d1;
+  --accent:#1f5c4a;--accent-ink:#ffffff;--accent-soft:#e3efea;
+  --error:#a53a26;--error-soft:#f9e9e5;
+  --warn:#8a6212;--warn-soft:#f8f1de;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#111310;--surface:#1a1c18;--sunk:#232620;--ink:#eceee8;
+  --ink-2:#a5a99e;--ink-3:#7b8074;--rule:#2b2e28;
+  --accent:#6cc0a2;--accent-ink:#0d1512;--accent-soft:#16241f;
+  --error:#ef8069;--error-soft:#2a1613;
+  --warn:#d5a444;--warn-soft:#261f12;
+}}
+:root[data-theme="dark"]{
+  --ground:#111310;--surface:#1a1c18;--sunk:#232620;--ink:#eceee8;
+  --ink-2:#a5a99e;--ink-3:#7b8074;--rule:#2b2e28;
+  --accent:#6cc0a2;--accent-ink:#0d1512;--accent-soft:#16241f;
+  --error:#ef8069;--error-soft:#2a1613;
+  --warn:#d5a444;--warn-soft:#261f12;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+font-family:var(--sans);font-size:16px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding:0 24px 80px}
+
+.masthead{padding:52px 0 26px;border-bottom:2px solid var(--ink)}
+.logo{font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+text-transform:uppercase;color:var(--accent);margin-bottom:16px}
+h1.title{font-size:clamp(28px,4.4vw,42px);font-weight:650;letter-spacing:-.025em;
+line-height:1.08;margin:0 0 14px;max-width:20ch;text-wrap:balance}
+.lede{font-family:var(--serif);font-size:18.5px;color:var(--ink-2);margin:0;
+max-width:60ch;line-height:1.55}
+.trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.chip{font-family:var(--mono);font-size:11px;letter-spacing:.05em;
+padding:5px 10px;border:1px solid var(--rule);border-radius:99px;
+color:var(--ink-2);background:var(--surface)}
+
+h2.step{font-size:12px;font-weight:650;letter-spacing:.13em;text-transform:uppercase;
+color:var(--ink-3);margin:44px 0 16px;padding-bottom:8px;
+border-bottom:1px solid var(--rule)}
+
+.slots{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.slot{background:var(--surface);border:1.5px dashed var(--rule);border-radius:8px;
+padding:18px;cursor:pointer;transition:border-color .12s,background .12s}
+.slot:hover,.slot.over{border-color:var(--accent);background:var(--accent-soft)}
+.slot.loaded{border-style:solid;border-color:var(--accent)}
+.slot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.slot .h{font-weight:640;font-size:15.5px;margin-bottom:4px}
+.slot .d{font-size:13.5px;color:var(--ink-2);line-height:1.45}
+.slot .n{font-family:var(--mono);font-size:11.5px;color:var(--accent);
+margin-top:10px;word-break:break-all}
+.slot input[type=file]{display:none}
+.fields{margin-top:14px;display:grid;gap:8px}
+.fields label{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+text-transform:uppercase;color:var(--ink-3);display:grid;gap:4px}
+select,input[type=text]{font:inherit;font-size:14px;padding:7px 9px;
+border:1px solid var(--rule);border-radius:5px;background:var(--ground);
+color:var(--ink);width:100%}
+select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px}
+
+.meta-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.meta-grid label{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+text-transform:uppercase;color:var(--ink-3);display:grid;gap:5px}
+.hint{font-family:var(--sans);font-size:12.5px;color:var(--ink-3);
+text-transform:none;letter-spacing:0;margin-top:2px}
+
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:26px}
+button{font:inherit;font-weight:600;font-size:15px;padding:11px 22px;border-radius:6px;
+border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);
+cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+button:disabled{opacity:.42;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#notes{margin-top:16px;display:grid;gap:8px}
+.note{font-size:14.5px;padding:11px 15px;border-radius:6px;border-left:3px solid}
+.note.info{background:var(--surface);border-color:var(--accent);color:var(--ink-2)}
+.note.warn{background:var(--warn-soft);border-color:var(--warn);color:var(--ink)}
+.note.error{background:var(--error-soft);border-color:var(--error);color:var(--ink)}
+
+#report-wrap{margin-top:56px;border-top:2px solid var(--ink);padding-top:8px}
+
+footer.site{margin-top:64px;padding-top:20px;border-top:1px solid var(--rule);
+font-family:var(--mono);font-size:11.5px;color:var(--ink-3);line-height:1.8}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;
+scroll-behavior:auto!important}}
+</style>
+<style id="report-style">/* Report styling. Kept separate from the app chrome so a downloaded report
+ * carries exactly this and nothing else — and so it renders identically inside
+ * the tool and as a standalone file the client opens six months later. */
+
+.rep{--r-ground:#fcfcfd;--r-surface:#f3f5f8;--r-sunk:#e9edf2;--r-ink:#151a21;
+--r-ink-2:#4b5563;--r-ink-3:#7a8595;--r-rule:#dee3ea;--r-accent:#2f5fd0;
+--r-critical:#b3402e;--r-critical-soft:#fbeae7;--r-major:#9a6414;
+--r-major-soft:#fbf1df;--r-clear:#1a7a55;--r-clear-soft:#e6f4ee;
+--ck-c0:#2f5fd0;--ck-c1:#e07b39;--ck-c2:#1f9d76;--ck-c3:#a855c9;
+--ck-c4:#d2455f;--ck-c5:#5a7183;--ck-c6:#8a7a1f;--ck-c7:#2ba3c4;
+--ck-surface:#e9edf2;
+--r-serif:Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;
+--r-sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+--r-mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
+color:var(--r-ink);font-family:var(--r-serif);font-size:16.5px;line-height:1.62}
+
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .rep{
+--r-ground:#0e1115;--r-surface:#161a20;--r-sunk:#1d232b;--r-ink:#e8ecf2;
+--r-ink-2:#a2acba;--r-ink-3:#79838f;--r-rule:#262d36;--r-accent:#7ea3f4;
+--r-critical:#ef7f6d;--r-critical-soft:#2d1a16;--r-major:#d9a441;
+--r-major-soft:#2a2114;--r-clear:#4cbc90;--r-clear-soft:#12271f;
+--ck-c0:#7ea3f4;--ck-c1:#f5a05e;--ck-c2:#4fc9a1;--ck-c3:#c98ae0;
+--ck-c4:#f0778c;--ck-c5:#93a3b5;--ck-c6:#c9b64e;--ck-c7:#5ec8e6;
+--ck-surface:#1d232b}}
+:root[data-theme="dark"] .rep{
+--r-ground:#0e1115;--r-surface:#161a20;--r-sunk:#1d232b;--r-ink:#e8ecf2;
+--r-ink-2:#a2acba;--r-ink-3:#79838f;--r-rule:#262d36;--r-accent:#7ea3f4;
+--r-critical:#ef7f6d;--r-critical-soft:#2d1a16;--r-major:#d9a441;
+--r-major-soft:#2a2114;--r-clear:#4cbc90;--r-clear-soft:#12271f;
+--ck-c0:#7ea3f4;--ck-c1:#f5a05e;--ck-c2:#4fc9a1;--ck-c3:#c98ae0;
+--ck-c4:#f0778c;--ck-c5:#93a3b5;--ck-c6:#c9b64e;--ck-c7:#5ec8e6;
+--ck-surface:#1d232b}
+
+body.standalone{margin:0;background:var(--r-ground)}
+body.standalone .rep{max-width:1000px;margin:0 auto;padding:0 26px 80px}
+
+.rep .rep-head{padding:44px 0 26px;border-bottom:2px solid var(--r-ink)}
+.rep .eyebrow{font-family:var(--r-mono);font-size:11px;letter-spacing:.14em;
+text-transform:uppercase;color:var(--r-ink-3);margin-bottom:14px}
+.rep h1{font-family:var(--r-sans);font-weight:660;letter-spacing:-.022em;
+font-size:clamp(26px,3.8vw,38px);line-height:1.1;margin:0;max-width:24ch;
+text-wrap:balance}
+.rep .meta{display:flex;flex-wrap:wrap;gap:0 26px;margin-top:18px;
+font-family:var(--r-mono);font-size:11.5px;letter-spacing:.04em;
+text-transform:uppercase;color:var(--r-ink-3)}
+.rep .meta b{color:var(--r-ink-2);font-weight:500}
+
+.rep section{margin-top:48px}
+.rep h2{font-family:var(--r-sans);font-size:12px;font-weight:660;
+letter-spacing:.13em;text-transform:uppercase;color:var(--r-ink-3);
+margin:0 0 16px;padding-bottom:9px;border-bottom:1px solid var(--r-rule)}
+
+.rep .f{display:grid;grid-template-columns:92px 1fr;gap:0 18px;padding:17px 0;
+border-bottom:1px solid var(--r-rule)}
+.rep .f:last-child{border-bottom:0}
+.rep .sev{font-family:var(--r-mono);font-size:10px;letter-spacing:.1em;
+text-transform:uppercase;padding:4px 8px;border-radius:2px;height:fit-content;
+text-align:center;border:1px solid}
+.rep .sev.critical{color:var(--r-critical);background:var(--r-critical-soft);
+border-color:var(--r-critical)}
+.rep .sev.major{color:var(--r-major);background:var(--r-major-soft);
+border-color:var(--r-major)}
+.rep .sev.note{color:var(--r-ink-3);background:var(--r-sunk);border-color:var(--r-rule)}
+.rep .sev.clear{color:var(--r-clear);background:var(--r-clear-soft);
+border-color:var(--r-clear)}
+.rep .f .t{font-family:var(--r-sans);font-weight:640;font-size:16px;margin-bottom:5px}
+.rep .f .b{color:var(--r-ink-2);font-size:15.5px;max-width:74ch}
+
+.rep .readout{display:grid;gap:1px;background:var(--r-rule);
+border:1px solid var(--r-rule);grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+margin-top:6px}
+.rep .cell{background:var(--r-ground);padding:16px 18px}
+.rep .cell .l{font-family:var(--r-mono);font-size:10.5px;letter-spacing:.1em;
+text-transform:uppercase;color:var(--r-ink-3);margin-bottom:6px}
+.rep .cell .v{font-family:var(--r-sans);font-size:25px;font-weight:640;
+letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.rep .cell .d{font-family:var(--r-mono);font-size:11px;color:var(--r-ink-3);margin-top:4px}
+
+.rep .card{background:var(--r-surface);border:1px solid var(--r-rule);
+border-radius:4px;padding:8px;overflow-x:auto;margin-top:16px}
+.rep .card svg{display:block;max-width:100%;height:auto}
+
+.rep .tw{overflow-x:auto;border:1px solid var(--r-rule);border-radius:4px;margin-top:16px}
+.rep table{width:100%;border-collapse:collapse;font-family:var(--r-mono);font-size:12.5px}
+.rep th,.rep td{padding:10px 14px;text-align:left;
+border-bottom:1px solid var(--r-rule);white-space:nowrap}
+.rep th.num,.rep td.num{text-align:right;font-variant-numeric:tabular-nums}
+.rep tr:last-child td{border-bottom:0}
+.rep thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+color:var(--r-ink-3);font-weight:500;background:var(--r-surface)}
+
+.rep .rnote{background:var(--r-surface);border-left:3px solid var(--r-accent);
+border-radius:0 4px 4px 0;padding:13px 17px;font-size:15px;color:var(--r-ink-2);
+margin-top:16px;max-width:78ch}
+.rep .gaps{background:var(--r-surface);border:1px solid var(--r-rule);
+border-radius:4px;padding:18px 24px;margin-top:6px}
+.rep .gaps ul{margin:0;padding-left:20px;color:var(--r-ink-2);font-size:15.5px}
+.rep .gaps li{margin-bottom:8px}
+
+.rep .rep-foot{margin-top:56px;padding-top:20px;border-top:1px solid var(--r-rule);
+font-family:var(--r-mono);font-size:11.5px;color:var(--r-ink-3);line-height:1.8}
+.rep .credit{color:var(--r-accent)}
+
+.rep .ck-t{fill:var(--r-ink);font-family:var(--r-sans);font-size:14px;font-weight:600}
+.rep .ck-s{fill:var(--r-ink-3);font-family:var(--r-sans);font-size:11.5px}
+.rep .ck-l{fill:var(--r-ink-3);font-family:var(--r-mono);font-size:10.5px}
+.rep .ck-v{fill:var(--r-ink);font-family:var(--r-mono);font-size:11px;font-weight:600}
+.rep .ck-g{stroke:var(--r-rule);stroke-width:1}
+.rep .ck-a{stroke:var(--r-ink-3);stroke-width:1}
+.rep .ck-ln{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+
+@media print{
+  .rep .card,.rep .tw{overflow:visible}
+  .rep section{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div class="logo">Reportcraft</div>
+  <h1 class="title">Turn a messy export into a report you can hand a client.</h1>
+  <p class="lede">Drop in a CSV. Get concentration, decay, and whether the trend
+  is real — plus an honest list of what the data cannot establish. Nothing is
+  uploaded; the analysis runs in this tab.</p>
+  <div class="trust">
+    <span class="chip">No upload · no account</span>
+    <span class="chip">Works offline</span>
+    <span class="chip">Download as one file</span>
+  </div>
+</header>
+
+<h2 class="step">1 · Add what you have</h2>
+<div class="slots">
+
+  <div class="slot" id="pages-box" tabindex="0" role="button" aria-label="Add an item breakdown CSV">
+    <div class="h">Item breakdown</div>
+    <div class="d">One row per page, post, or product. Add a publish date and
+    you also get decay analysis.</div>
+    <div class="n" id="pages-name"></div>
+    <input type="file" id="pages-input" accept=".csv,text/csv">
+    <div class="fields" id="pages-fields" hidden>
+      <label>Item column<select id="pages-item"></select></label>
+      <label>Value column<select id="pages-value"></select></label>
+      <label>Publish date (optional)<select id="pages-date"></select></label>
+    </div>
+  </div>
+
+  <div class="slot" id="revenue-box" tabindex="0" role="button" aria-label="Add a revenue by source CSV">
+    <div class="h">Revenue by source</div>
+    <div class="d">One row per sponsor, advertiser, affiliate, or product. This
+    is where dependence usually hides.</div>
+    <div class="n" id="revenue-name"></div>
+    <input type="file" id="revenue-input" accept=".csv,text/csv">
+    <div class="fields" id="revenue-fields" hidden>
+      <label>Source column<select id="revenue-item"></select></label>
+      <label>Amount column<select id="revenue-value"></select></label>
+    </div>
+  </div>
+
+  <div class="slot" id="traffic-box" tabindex="0" role="button" aria-label="Add a time series CSV">
+    <div class="h">Time series</div>
+    <div class="d">One row per day, week, or month. Six periods minimum, twelve
+    or more preferred.</div>
+    <div class="n" id="traffic-name"></div>
+    <input type="file" id="traffic-input" accept=".csv,text/csv">
+    <div class="fields" id="traffic-fields" hidden>
+      <label>Date column<select id="traffic-date"></select></label>
+      <label>Value column<select id="traffic-value"></select></label>
+    </div>
+  </div>
+
+</div>
+
+<h2 class="step">2 · Label it</h2>
+<div class="meta-grid">
+  <label>Report title
+    <input type="text" id="client" placeholder="e.g. Q3 performance — Acme">
+  </label>
+  <label>Prepared for
+    <input type="text" id="prepared" placeholder="e.g. the board, a client, a buyer">
+  </label>
+  <label>Vintage grouping
+    <select id="period">
+      <option value="year" selected>Year</option>
+      <option value="quarter">Quarter</option>
+      <option value="month">Month</option>
+    </select>
+  </label>
+  <label>Your name in the footer
+    <input type="text" id="brand" placeholder="Free version credits Reportcraft" disabled>
+    <span class="hint">Custom footer branding is the paid upgrade. There is no
+    billing in this build, so the field is disabled rather than pretending.</span>
+  </label>
+</div>
+
+<div class="actions">
+  <button id="build" disabled>Build report</button>
+  <button id="download" class="ghost" disabled>Download as one file</button>
+</div>
+
+<div id="notes" role="status" aria-live="polite"></div>
+
+<div id="report-wrap" hidden>
+  <div class="rep" id="report"></div>
+</div>
+
+<footer class="site">
+  Runs entirely in your browser. Files are read locally and never transmitted —
+  there is no server to transmit them to.<br>
+  Descriptive statistics only. Not a valuation, an audit, or investment advice.<br>
+  &copy; <span id="year"></span> Reportcraft · the statistics are cross-checked
+  against a reference implementation on every build.
+</footer>
+
+</div>
+<script>/* engine — the analysis, ported from tools/ to run in a browser.
+ *
+ * Pure functions only: no DOM, no globals, no I/O. That is what lets
+ * studio/parity.mjs run this under node and compare every number against the
+ * Python implementation on identical fixtures. A port nobody checks is a
+ * second implementation of the same bugs, plus new ones.
+ *
+ * Where behaviour looks odd here, it is deliberately matching Python:
+ * statistics.median averages the middle pair on even counts, theil_sen strides
+ * its pairs rather than sampling, and blank is never zero.
+ */
+
+const Engine = (() => {
+  "use strict";
+
+  // ---------- parsing -----------------------------------------------------
+
+  /** RFC4180-ish CSV: quoted fields, embedded commas/newlines, doubled quotes. */
+  function parseCSV(text) {
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);   // strip BOM
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === ",") {
+        row.push(field); field = "";
+      } else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); field = "";
+        if (row.length > 1 || row[0] !== "") rows.push(row);
+        row = [];
+      } else field += c;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    if (!rows.length) throw new EngineError("The file has no rows.");
+
+    const header = rows[0].map(h => h.trim());
+    const dupes = header.filter((h, i) => header.indexOf(h) !== i);
+    const out = [];
+    for (let r = 1; r < rows.length; r++) {
+      if (rows[r].length === 1 && rows[r][0].trim() === "") continue;
+      const rec = {};
+      header.forEach((h, i) => { rec[h] = rows[r][i] === undefined ? "" : rows[r][i]; });
+      out.push(rec);
+    }
+    if (!out.length) throw new EngineError("The file has a header but no data rows.");
+    return { header, rows: out, duplicateColumns: [...new Set(dupes)] };
+  }
+
+  class EngineError extends Error {}
+
+  const BLANKS = new Set(["", "n/a", "na", "-", "--", "null", "none"]);
+
+  /** Matches tools/concentration.py:num — blank is "not reported", never zero. */
+  function num(v, field) {
+    if (v === null || v === undefined) return null;
+    let s = String(v).trim().replace(/,/g, "").replace(/\$/g, "").replace(/%/g, "");
+    if (BLANKS.has(s.toLowerCase())) return null;
+    let mult = 1;
+    const last = s.slice(-1).toLowerCase();
+    if ("kmb".includes(last) && s.length > 1) {
+      mult = { k: 1e3, m: 1e6, b: 1e9 }[last];
+      s = s.slice(0, -1);
+    }
+    const n = Number(s);
+    if (!Number.isFinite(n)) {
+      throw new EngineError(`${field}: "${v}" is not a number.`);
+    }
+    return n * mult;
+  }
+
+  const DATE_RE = [
+    [/^(\d{4})-(\d{2})-(\d{2})/, (m) => [+m[1], +m[2], +m[3]]],
+    [/^(\d{4})\/(\d{2})\/(\d{2})/, (m) => [+m[1], +m[2], +m[3]]],
+    [/^(\d{1,2})\/(\d{1,2})\/(\d{4})/, (m) => [+m[3], +m[1], +m[2]]],  // US
+    [/^(\d{4})-(\d{2})$/, (m) => [+m[1], +m[2], 1]],
+  ];
+
+  function parseDate(v, field) {
+    const s = String(v).trim();
+    if (!s) return null;
+    for (const [re, pick] of DATE_RE) {
+      const m = s.match(re);
+      if (m) {
+        const [y, mo, d] = pick(m);
+        if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return new Date(Date.UTC(y, mo - 1, d));
+      }
+    }
+    const t = Date.parse(s);
+    if (!Number.isNaN(t)) return new Date(t);
+    throw new EngineError(`${field}: cannot read "${v}" as a date.`);
+  }
+
+  const iso = (d) => d.toISOString().slice(0, 10);
+
+  // ---------- statistics --------------------------------------------------
+
+  /** Python statistics.median: averages the middle pair on even counts. */
+  function median(xs) {
+    if (!xs.length) return 0;
+    const s = [...xs].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  }
+
+  function mad(xs) {
+    if (!xs.length) return 0;
+    const m = median(xs);
+    return 1.4826 * median(xs.map(x => Math.abs(x - m)));
+  }
+
+  function hhi(values) {
+    const total = values.reduce((a, b) => a + b, 0);
+    if (total <= 0) throw new EngineError("Values sum to zero — nothing to measure.");
+    return values.reduce((a, v) => a + (v / total) ** 2, 0);
+  }
+
+  function gini(values) {
+    const xs = [...values].sort((a, b) => a - b);
+    const n = xs.length;
+    const total = xs.reduce((a, b) => a + b, 0);
+    if (n <= 1 || total <= 0) return 0;
+    let weighted = 0;
+    for (let i = 0; i < n; i++) weighted += (i + 1) * xs[i];
+    return (2 * weighted) / (n * total) - (n + 1) / n;
+  }
+
+  const GINI_BANDS = [[0.40, "evenly spread"], [0.60, "unequal"],
+                      [1.01, "steeply unequal — a power law"]];
+  function band(g) {
+    for (const [edge, label] of GINI_BANDS) if (g < edge) return label;
+    return "steeply unequal — a power law";
+  }
+
+  /** Robust slope. Strided, not sampled, so it is deterministic. */
+  function theilSen(xs, ys, maxPairs = 1200) {
+    const n = xs.length;
+    if (n < 2) return 0;
+    const total = (n * (n - 1)) / 2;
+    const stride = Math.max(1, Math.floor(total / maxPairs));
+    const slopes = [];
+    let k = 0;
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (k % stride === 0) {
+          const dx = xs[j] - xs[i];
+          if (dx) slopes.push((ys[j] - ys[i]) / dx);
+        }
+        k++;
+      }
+    }
+    return slopes.length ? median(slopes) : 0;
+  }
+
+  // ---------- concentration ----------------------------------------------
+
+  function analyze(items, topN = 10) {
+    const total = items.reduce((a, it) => a + it.value, 0);
+    if (total <= 0) throw new EngineError("Every value is zero or blank.");
+
+    const ranked = [...items].sort((a, b) =>
+      b.value - a.value || String(a.name).localeCompare(String(b.name)));
+    const desc = ranked.map(r => r.value);
+    const n = desc.length;
+    const h = hhi(desc);
+    const g = gini(desc);
+
+    const out = {
+      items: n,
+      total,
+      hhi: h,
+      hhiNormalized: n > 1 ? (h - 1 / n) / (1 - 1 / n) : 1,
+      effectiveN: 1 / h,
+      effectivePct: 1 / h / n,
+      top1xEvenShare: (desc[0] / total) / (1 / n),
+      gini: g,
+      band: band(g),
+      top: ranked.slice(0, topN).map(r => ({
+        name: String(r.name), value: r.value, share: r.value / total })),
+      shares: {},
+      fragility: {},
+    };
+    for (const k of [1, 3, 5, 10]) {
+      if (k <= n) out.shares["top" + k] = desc.slice(0, k).reduce((a, b) => a + b, 0) / total;
+    }
+    if (n >= 20) {
+      const k = Math.max(1, Math.floor(n / 10));
+      out.shares.top10pct = desc.slice(0, k).reduce((a, b) => a + b, 0) / total;
+    }
+    for (const k of [1, 3]) {
+      if (k < n) {
+        const lost = desc.slice(0, k).reduce((a, b) => a + b, 0);
+        out.fragility["dropTop" + k] = { remaining: total - lost, pctLost: (lost / total) * 100 };
+      }
+    }
+    return out;
+  }
+
+  // ---------- vintages ----------------------------------------------------
+
+  function bucketKey(d, period) {
+    const y = d.getUTCFullYear(), m = d.getUTCMonth() + 1;
+    if (period === "year") return String(y).padStart(4, "0");
+    if (period === "quarter") return `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
+    if (period === "month") return `${y}-${String(m).padStart(2, "0")}`;
+    throw new EngineError(`Unknown period "${period}".`);
+  }
+
+  function vintages(dated, period) {
+    const buckets = new Map();
+    for (const { value, date } of dated) {
+      const key = bucketKey(date, period);
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(value);
+    }
+    const grand = [...buckets.values()].flat().reduce((a, b) => a + b, 0);
+    return [...buckets.keys()].sort().map(period_ => {
+      const vals = buckets.get(period_);
+      const total = vals.reduce((a, b) => a + b, 0);
+      const sorted = [...vals].sort((a, b) => a - b);
+      return {
+        period: period_,
+        items: vals.length,
+        total,
+        share: grand ? total / grand : 0,
+        // Python indexes the midpoint here rather than averaging the pair.
+        medianPerItem: sorted[Math.floor(sorted.length / 2)],
+      };
+    });
+  }
+
+  function replacement(vints) {
+    if (vints.length < 4) return null;
+    const k = Math.max(1, Math.floor(vints.length / 4));
+    const pick = (arr) => {
+      const s = arr.map(v => v.medianPerItem).sort((a, b) => a - b);
+      return s[Math.floor(s.length / 2)];
+    };
+    const oldMedian = pick(vints.slice(0, k));
+    const newMedian = pick(vints.slice(-k));
+    if (oldMedian <= 0) return null;
+    return {
+      oldMedian, newMedian, ratio: newMedian / oldMedian,
+      oldPeriods: vints.slice(0, k).map(v => v.period),
+      newPeriods: vints.slice(-k).map(v => v.period),
+    };
+  }
+
+  // ---------- trend -------------------------------------------------------
+
+  function fit(hist, seasonal) {
+    const xs = hist.map((_, i) => i);
+    const ys = hist.map(p => p.value);
+    const slope = theilSen(xs, ys);
+    const intercept = median(xs.map((x, i) => ys[i] - slope * x));
+
+    const offsets = {};
+    if (seasonal === "weekly" && hist.length >= 14) {
+      const b = {};
+      hist.forEach((p, x) => {
+        const wd = (p.date.getUTCDay() + 6) % 7;            // Monday = 0, as Python
+        (b[wd] = b[wd] || []).push(p.value - (intercept + slope * x));
+      });
+      for (const wd of Object.keys(b)) {
+        if (b[wd].length >= 3) offsets[wd] = median(b[wd]);
+      }
+    }
+    const predict = (x, wd) => intercept + slope * x + (offsets[wd] || 0);
+    const resid = hist.map((p, x) => p.value - predict(x, (p.date.getUTCDay() + 6) % 7));
+    return { predict, resid };
+  }
+
+  function detect(points, window = 12, z = 3.0, seasonal = null) {
+    const out = [];
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const hist = points.slice(Math.max(0, i - window), i);
+      if (hist.length < Math.max(6, Math.floor(window / 3))) {
+        out.push({ date: iso(p.date), value: p.value, z: null, baseline: null, flag: null });
+        continue;
+      }
+      const { predict, resid } = fit(hist, seasonal);
+      const wd = (p.date.getUTCDay() + 6) % 7;
+      const expected = predict(hist.length, wd);
+      const spread = mad(resid);
+      let score;
+      if (!spread) score = p.value === expected ? 0 : (p.value > expected ? 8 : -8);
+      else score = (p.value - expected) / spread;
+      out.push({
+        date: iso(p.date), value: p.value,
+        z: Math.round(score * 1000) / 1000,
+        baseline: Math.round(expected * 10000) / 10000,
+        flag: score >= z ? "spike" : (score <= -z ? "drop" : null),
+      });
+    }
+    return out;
+  }
+
+  function cusum(diag, k = 0.5, h = 5.0, gap = 3) {
+    const scored = diag.filter(d => d.z !== null);
+    if (scored.length < 8) return [];
+    let hi = 0, lo = 0;
+    const raw = [];
+    scored.forEach((r, idx) => {
+      const s = Math.max(-10, Math.min(10, r.z));
+      hi = Math.max(0, hi + s - k);
+      lo = Math.min(0, lo + s + k);
+      if (hi > h) { raw.push({ idx, date: r.date, direction: "up", stat: hi }); hi = lo = 0; }
+      else if (lo < -h) { raw.push({ idx, date: r.date, direction: "down", stat: lo }); hi = lo = 0; }
+    });
+    const episodes = [];
+    for (const e of raw) {
+      const last = episodes[episodes.length - 1];
+      if (last && last.direction === e.direction && e.idx - last._idx <= gap) {
+        last._idx = e.idx; last.until = e.date; last.points++;
+        if (Math.abs(e.stat) > Math.abs(last.stat)) last.stat = Math.round(e.stat * 100) / 100;
+      } else {
+        episodes.push({ _idx: e.idx, date: e.date, until: e.date,
+                        direction: e.direction, stat: Math.round(e.stat * 100) / 100,
+                        points: 1 });
+      }
+    }
+    episodes.forEach(e => delete e._idx);
+    return episodes;
+  }
+
+  // ---------- findings ----------------------------------------------------
+
+  const fmt = (v) => {
+    const a = Math.abs(v);
+    if (a >= 1e9) return (v / 1e9).toFixed(2).replace(/\.?0+$/, "") + "B";
+    if (a >= 1e6) return (v / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M";
+    if (a >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "k";
+    return a % 1 ? v.toFixed(2).replace(/\.?0+$/, "") : String(Math.round(v));
+  };
+
+  function findings({ pageRes, vints, repl, revRes, trend }) {
+    const out = [];
+    const push = (sev, title, body) => out.push({ sev, title, body });
+
+    if (revRes) {
+      const t1 = revRes.shares.top1 || 0;
+      if (t1 > 0.30) push("critical", "Revenue concentration",
+        `One source is ${(t1 * 100).toFixed(0)}% of revenue. A renegotiation or ` +
+        `non-renewal there halves the business. Establish contract length and ` +
+        `history before anything else.`);
+      else if (t1 > 0.15) push("major", "Revenue concentration",
+        `The largest revenue source is ${(t1 * 100).toFixed(0)}% of the total. ` +
+        `Material, not yet existential.`);
+    }
+
+    if (pageRes) {
+      const t1 = pageRes.shares.top1 || 0;
+      const mult = pageRes.top1xEvenShare;
+      if (t1 > 0.10 || mult >= 10) {
+        const d3 = pageRes.fragility.dropTop3 ? pageRes.fragility.dropTop3.pctLost : 0;
+        push(t1 > 0.20 ? "critical" : "major", "Traffic concentration",
+          `One item is ${(t1 * 100).toFixed(0)}% of the total — ${mult.toFixed(0)}x ` +
+          `an even share. Removing the top 3 costs ${d3.toFixed(0)}%. This asset ` +
+          `is its top items.`);
+      }
+      if (pageRes.effectivePct < 0.25 && pageRes.items >= 10) {
+        push("major", "Effective inventory",
+          `${pageRes.items.toLocaleString()} items behave like ` +
+          `${pageRes.effectiveN.toFixed(0)}. The item count overstates what is ` +
+          `actually working.`);
+      }
+    }
+
+    if (vints && vints.length >= 3) {
+      const newest = vints[vints.length - 1];
+      if (newest.share < 0.05) push("major", "Recent output is not landing",
+        `The newest cohort (${newest.period}) contributes ` +
+        `${(newest.share * 100).toFixed(1)}% of the total across ` +
+        `${newest.items.toLocaleString()} items.`);
+      const counts = vints.map(v => v.items), meds = vints.map(v => v.medianPerItem);
+      if (counts[counts.length - 1] > counts[0] &&
+          meds[meds.length - 1] < meds[0] * 0.6) {
+        push("critical", "Production up, yield down",
+          `Output rose from ${counts[0].toLocaleString()} to ` +
+          `${counts[counts.length - 1].toLocaleString()} items per period while ` +
+          `median value per item fell from ${fmt(meds[0])} to ` +
+          `${fmt(meds[meds.length - 1])}. The business is working harder to ` +
+          `stand still — a pattern no total reveals.`);
+      }
+    }
+
+    if (repl && repl.ratio < 0.5) {
+      push("note", "Replacement ratio",
+        `New work is at ${repl.ratio.toFixed(2)}x the median of old work. Older ` +
+        `items have had longer to accumulate, so this is biased in their favour ` +
+        `and is suggestive rather than conclusive.`);
+    }
+
+    if (trend) {
+      const downs = trend.shifts.filter(s => s.direction === "down");
+      if (downs.length) {
+        const last = downs[downs.length - 1];
+        const span = last.until === last.date ? "" : ` through ${last.until}`;
+        push("critical", "Sustained decline detected",
+          `A level shift down begins ${last.date}${span} and is not explained by ` +
+          `normal variation. Any average spanning that date understates the ` +
+          `current run rate.`);
+      }
+      if (!downs.length && !trend.flags.length) {
+        push("clear", "Trend",
+          `No sustained level shift and no point anomalies at the tested ` +
+          `threshold. The series is stable — which is a finding, not an ` +
+          `absence of one.`);
+      }
+    }
+
+    if (!out.length) push("clear", "No material flag",
+      `Nothing in the supplied data meets the thresholds used here. That is not ` +
+      `the same as a clean business — see what was not examined.`);
+
+    const rank = { critical: 0, major: 1, note: 2, clear: 3 };
+    out.sort((a, b) => rank[a.sev] - rank[b.sev]);
+    return out;
+  }
+
+  return { EngineError, parseCSV, num, parseDate, iso, median, mad, hhi, gini,
+           band, theilSen, analyze, vintages, replacement, bucketKey, fit,
+           detect, cusum, findings, fmt };
+})();
+
+</script>
+<script>/* charts — the drawing half, kept out of engine.js so the statistics stay
+ * pure and parity-testable.
+ *
+ * Same rules as tools/chartkit.py: theme-aware via CSS custom properties, no
+ * external references of any kind so a saved report opens offline forever,
+ * bars start at zero, gaps stay gaps, and every label is escaped because it
+ * came from someone else's spreadsheet.
+ */
+
+const Charts = (() => {
+  "use strict";
+
+  const esc = (s) => String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+  const fmt = (v) => {
+    const a = Math.abs(v);
+    if (a >= 1e9) return (v / 1e9).toFixed(2).replace(/\.?0+$/, "") + "B";
+    if (a >= 1e6) return (v / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M";
+    if (a >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, "") + "k";
+    if (a === 0) return "0";
+    return a % 1 ? Number(v.toFixed(4)).toString() : String(Math.round(v));
+  };
+
+  /** Ticks on 1/2/2.5/5 x 10^n boundaries. Always at least two. */
+  function ticks(lo, hi, target = 5) {
+    if (hi === lo) { const pad = Math.abs(hi) * 0.1 || 1; lo -= pad; hi += pad; }
+    if (hi < lo) [lo, hi] = [hi, lo];
+    const raw = (hi - lo) / Math.max(1, target);
+    const mag = raw > 0 ? Math.pow(10, Math.floor(Math.log10(raw))) : 1;
+    let step = 10 * mag;
+    for (const m of [1, 2, 2.5, 5, 10]) if (raw <= m * mag) { step = m * mag; break; }
+    const out = [];
+    let t = Math.floor(lo / step) * step;
+    for (let guard = 0; t <= hi + step * 0.5 && guard < 500; guard++, t += step) {
+      out.push(Math.round(t * 1e10) / 1e10);
+    }
+    return out.length >= 2 ? out : [lo, hi];
+  }
+
+  const open = (w, h, label) =>
+    `<svg class="ck" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" ` +
+    `width="100%" height="${h}" role="img" aria-label="${esc(label || "chart")}">`;
+
+  const title = (t, s) =>
+    (t ? `<text class="ck-t" x="16" y="24">${esc(t)}</text>` : "") +
+    (s ? `<text class="ck-s" x="16" y="${t ? 42 : 24}">${esc(s)}</text>` : "");
+
+  const topPad = (t, s) => 20 + (t ? 22 : 0) + (s ? 20 : 0);
+
+  /** Time or ordered series. Missing values break the path rather than lying. */
+  function line(xs, ys, opts = {}) {
+    const { w = 1000, h = 340, title: t = "", subtitle: s = "", unit = "" } = opts;
+    const top = topPad(t, s), left = 62, right = 20, bottom = 42;
+    const pw = w - left - right, ph = h - top - bottom;
+    const present = ys.filter(v => v !== null && v !== undefined);
+    if (!present.length || pw <= 20 || ph <= 20) return "";
+
+    const tk = ticks(Math.min(...present), Math.max(...present));
+    const lo = tk[0], hi = tk[tk.length - 1], span = (hi - lo) || 1;
+    const px = (i) => left + (xs.length > 1 ? (pw * i) / (xs.length - 1) : pw / 2);
+    const py = (v) => top + ph - ((v - lo) / span) * ph;
+
+    const b = [];
+    for (const v of tk) {
+      const y = py(v).toFixed(1);
+      b.push(`<line class="ck-g" x1="${left}" y1="${y}" x2="${left + pw}" y2="${y}"/>`);
+      b.push(`<text class="ck-l" x="${left - 8}" y="${(+y + 4).toFixed(1)}" text-anchor="end">${esc(fmt(v) + unit)}</text>`);
+    }
+    const step = Math.max(1, Math.ceil(xs.length / 8));
+    for (let i = 0; i < xs.length; i += step) {
+      b.push(`<text class="ck-l" x="${px(i).toFixed(1)}" y="${top + ph + 18}" text-anchor="middle">${esc(xs[i])}</text>`);
+    }
+
+    let run = [];
+    const runs = [];
+    ys.forEach((v, i) => {
+      if (v === null || v === undefined) { if (run.length) runs.push(run); run = []; }
+      else run.push([px(i), py(v)]);
+    });
+    if (run.length) runs.push(run);
+
+    for (const r of runs) {
+      if (r.length === 1) {
+        b.push(`<circle cx="${r[0][0].toFixed(1)}" cy="${r[0][1].toFixed(1)}" r="3" fill="var(--ck-c0)"/>`);
+        continue;
+      }
+      const d = "M" + r.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L");
+      const base = py(Math.max(lo, 0) <= hi ? Math.max(lo, 0) : lo);
+      b.push(`<path d="${d} L${r[r.length - 1][0].toFixed(1)},${base.toFixed(1)} L${r[0][0].toFixed(1)},${base.toFixed(1)} Z" fill="var(--ck-c0)" opacity="0.12"/>`);
+      b.push(`<path class="ck-ln" d="${d}" stroke="var(--ck-c0)"/>`);
+    }
+    const last = runs.length ? runs[runs.length - 1].slice(-1)[0] : null;
+    if (last) b.push(`<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.6" fill="var(--ck-c0)"/>`);
+    b.push(`<line class="ck-a" x1="${left}" y1="${top + ph}" x2="${left + pw}" y2="${top + ph}"/>`);
+    return open(w, h, t) + title(t, s) + b.join("") + "</svg>";
+  }
+
+  /** Horizontal bars — the right choice whenever the labels are words. */
+  function hbar(labels, values, opts = {}) {
+    const { w = 1000, title: t = "", subtitle: s = "" } = opts;
+    if (!labels.length) return "";
+    const top = topPad(t, s);
+    const longest = Math.max(...labels.map(l => String(l).length));
+    const left = 8 + Math.max(110, Math.min(280, longest * 7));
+    const right = 84, rowh = 26, gap = 8;
+    const h = top + labels.length * (rowh + gap) + 16;
+    const pw = w - left - right;
+    if (pw <= 20) return "";
+    const mx = Math.max(...values.map(Math.abs)) || 1;
+
+    const b = [];
+    labels.forEach((lab, i) => {
+      const y = top + i * (rowh + gap);
+      const bw = Math.max((Math.abs(values[i]) / mx) * pw, 2);
+      const label = String(lab).length > 46 ? String(lab).slice(0, 45) + "…" : String(lab);
+      b.push(`<text class="ck-l" x="${left - 10}" y="${y + rowh / 2 + 4}" text-anchor="end">${esc(label)}</text>`);
+      b.push(`<rect x="${left}" y="${y}" width="${pw}" height="${rowh}" rx="4" fill="var(--ck-surface)"/>`);
+      b.push(`<rect x="${left}" y="${y}" width="${bw.toFixed(1)}" height="${rowh}" rx="4" fill="var(--ck-c${i % 8})"/>`);
+      b.push(`<text class="ck-v" x="${left + pw + 8}" y="${y + rowh / 2 + 4}">${esc(fmt(values[i]))}</text>`);
+    });
+    return open(w, h, t) + title(t, s) + b.join("") + "</svg>";
+  }
+
+  /** Vertical bars, always zero-based — that is the whole encoding. */
+  function bar(labels, values, opts = {}) {
+    const { w = 1000, h = 320, title: t = "", subtitle: s = "" } = opts;
+    if (!labels.length) return "";
+    const top = topPad(t, s), left = 62, right = 20, bottom = 46;
+    const pw = w - left - right, ph = h - top - bottom;
+    if (pw <= 20 || ph <= 20) return "";
+
+    const tk = ticks(Math.min(0, ...values), Math.max(0, ...values));
+    const lo = tk[0], hi = tk[tk.length - 1], span = (hi - lo) || 1;
+    const py = (v) => top + ph - ((v - lo) / span) * ph;
+    const slot = pw / labels.length, bw = Math.min(72, slot * 0.66);
+
+    const b = [];
+    for (const v of tk) {
+      const y = py(v).toFixed(1);
+      b.push(`<line class="ck-g" x1="${left}" y1="${y}" x2="${left + pw}" y2="${y}"/>`);
+      b.push(`<text class="ck-l" x="${left - 8}" y="${(+y + 4).toFixed(1)}" text-anchor="end">${esc(fmt(v))}</text>`);
+    }
+    const zero = py(0);
+    values.forEach((v, i) => {
+      const cx = left + slot * i + slot / 2;
+      const y0 = py(v), y = Math.min(y0, zero), hgt = Math.abs(zero - y0);
+      b.push(`<rect x="${(cx - bw / 2).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(hgt, 1).toFixed(1)}" rx="3" fill="var(--ck-c0)"/>`);
+      b.push(`<text class="ck-v" x="${cx.toFixed(1)}" y="${(y - 6).toFixed(1)}" text-anchor="middle">${esc(fmt(v))}</text>`);
+      b.push(`<text class="ck-l" x="${cx.toFixed(1)}" y="${top + ph + 20}" text-anchor="middle">${esc(labels[i])}</text>`);
+    });
+    b.push(`<line class="ck-a" x1="${left}" y1="${zero.toFixed(1)}" x2="${left + pw}" y2="${zero.toFixed(1)}"/>`);
+    return open(w, h, t) + title(t, s) + b.join("") + "</svg>";
+  }
+
+  return { esc, fmt, ticks, line, hbar, bar };
+})();
+
+</script>
+<script>/* app — the UI layer and the report assembler.
+ *
+ * Everything runs in the browser. Files are read with FileReader and never
+ * leave the machine; there is no upload, no fetch, no analytics beacon. That
+ * is a feature to state loudly, because the people most likely to use this are
+ * handling a client's data and are right to be careful with it.
+ */
+
+(() => {
+  "use strict";
+
+  const E = Engine, C = Charts;
+  const $ = (sel) => document.querySelector(sel);
+  const el = (id) => document.getElementById(id);
+
+  // The single switch between free and paid behaviour. There is no billing in
+  // this build and pretending otherwise would be dishonest; a licensed build
+  // flips this and reads the branding field instead of stamping attribution.
+  const ATTRIBUTION_REQUIRED = true;
+  const TOOL_NAME = "Reportcraft";
+
+  const state = { pages: null, revenue: null, traffic: null, report: null };
+
+  // ---------- file intake --------------------------------------------------
+
+  const GUESS = {
+    item: ["url", "page", "path", "post", "title", "id", "name", "source",
+           "sponsor", "advertiser", "landing page", "page path"],
+    value: ["pageviews", "views", "sessions", "users", "amount", "revenue",
+            "earnings", "clicks", "impressions", "total", "value"],
+    date: ["date", "published", "publish date", "month", "day", "created",
+           "first published", "post date"],
+  };
+
+  function guessColumn(header, kind) {
+    const low = header.map(h => h.toLowerCase().trim());
+    for (const want of GUESS[kind]) {
+      const i = low.indexOf(want);
+      if (i !== -1) return header[i];
+    }
+    for (const want of GUESS[kind]) {
+      const i = low.findIndex(h => h.includes(want));
+      if (i !== -1) return header[i];
+    }
+    return "";
+  }
+
+  function fillSelect(select, header, chosen) {
+    select.innerHTML = '<option value="">— none —</option>' +
+      header.map(h => `<option value="${C.esc(h)}"${h === chosen ? " selected" : ""}>${C.esc(h)}</option>`).join("");
+  }
+
+  function readFile(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+      r.onload = () => resolve(r.result);
+      // Most exports are UTF-8; a cp1252 file will show mojibake in labels
+      // rather than failing, and the report says so in its data-quality note.
+      r.readAsText(file, "utf-8");
+    });
+  }
+
+  async function accept(slot, file) {
+    const box = el(`${slot}-box`);
+    try {
+      const text = await readFile(file);
+      const parsed = E.parseCSV(text);
+      state[slot] = { file: file.name, ...parsed };
+      box.classList.add("loaded");
+      el(`${slot}-name`).textContent = `${file.name} · ${parsed.rows.length.toLocaleString()} rows`;
+      const fields = el(`${slot}-fields`);
+      fields.hidden = false;
+      for (const kind of ["item", "value", "date"]) {
+        const sel = el(`${slot}-${kind}`);
+        if (sel) fillSelect(sel, parsed.header, guessColumn(parsed.header, kind));
+      }
+      if (parsed.duplicateColumns.length) {
+        note(`${file.name}: duplicate column name(s) ${parsed.duplicateColumns.join(", ")}. ` +
+             `Only the last of each is readable.`, "warn");
+      }
+      el("build").disabled = false;
+    } catch (err) {
+      box.classList.remove("loaded");
+      state[slot] = null;
+      note(`${file.name}: ${err.message}`, "error");
+    }
+  }
+
+  function note(msg, kind = "info") {
+    const holder = el("notes");
+    const div = document.createElement("div");
+    div.className = `note ${kind}`;
+    div.textContent = msg;
+    holder.appendChild(div);
+    setTimeout(() => div.remove(), 9000);
+  }
+
+  function wireDrop(slot) {
+    const box = el(`${slot}-box`);
+    const input = el(`${slot}-input`);
+    box.addEventListener("click", (e) => { if (e.target.tagName !== "SELECT") input.click(); });
+    box.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
+    });
+    input.addEventListener("change", () => { if (input.files[0]) accept(slot, input.files[0]); });
+    ["dragenter", "dragover"].forEach(ev =>
+      box.addEventListener(ev, (e) => { e.preventDefault(); box.classList.add("over"); }));
+    ["dragleave", "drop"].forEach(ev =>
+      box.addEventListener(ev, (e) => { e.preventDefault(); box.classList.remove("over"); }));
+    box.addEventListener("drop", (e) => {
+      const f = e.dataTransfer.files[0];
+      if (f) accept(slot, f);
+    });
+  }
+
+  // ---------- analysis -----------------------------------------------------
+
+  function collectItems(slot) {
+    const src = state[slot];
+    if (!src) return null;
+    const itemCol = el(`${slot}-item`).value;
+    const valueCol = el(`${slot}-value`).value;
+    const dateCol = el(`${slot}-date`) ? el(`${slot}-date`).value : "";
+    if (!itemCol || !valueCol) {
+      throw new E.EngineError(`${src.file}: choose which column names the item and which holds the value.`);
+    }
+    const items = [], dated = [];
+    let blank = 0, negative = 0;
+    for (const r of src.rows) {
+      const v = E.num(r[valueCol], valueCol);
+      if (v === null) { blank++; continue; }
+      if (v < 0) { negative++; continue; }
+      if (v === 0) continue;
+      const name = String(r[itemCol]).trim() || "(unnamed)";
+      items.push({ name, value: v });
+      if (dateCol) {
+        const d = E.parseDate(r[dateCol], dateCol);
+        if (d) dated.push({ name, value: v, date: d });
+      }
+    }
+    if (items.length < 3) {
+      throw new E.EngineError(
+        `${src.file}: only ${items.length} row(s) had a positive value. ` +
+        `Concentration is not a meaningful question below 3.`);
+    }
+    return { items, dated, blank, negative, file: src.file, dateCol };
+  }
+
+  function collectSeries() {
+    const src = state.traffic;
+    if (!src) return null;
+    const dateCol = el("traffic-date").value, valueCol = el("traffic-value").value;
+    if (!dateCol || !valueCol) {
+      throw new E.EngineError(`${src.file}: choose the date column and the value column.`);
+    }
+    const pts = [];
+    for (const r of src.rows) {
+      const v = E.num(r[valueCol], valueCol);
+      if (v === null) continue;
+      const d = E.parseDate(r[dateCol], dateCol);
+      if (d) pts.push({ date: d, value: v });
+    }
+    pts.sort((a, b) => a.date - b.date);
+    if (pts.length < 6) {
+      throw new E.EngineError(
+        `${src.file}: only ${pts.length} usable period(s). Trend analysis needs ` +
+        `at least 6 — ask for a longer history rather than charting noise.`);
+    }
+    return { pts, label: valueCol };
+  }
+
+  // ---------- report -------------------------------------------------------
+
+  const tile = (l, v, d = "") =>
+    `<div class="cell"><div class="l">${C.esc(l)}</div>` +
+    `<div class="v">${C.esc(v)}</div><div class="d">${C.esc(d)}</div></div>`;
+
+  function concentrationSection(heading, res, nounPlural) {
+    const drop3 = res.fragility.dropTop3 ? res.fragility.dropTop3.pctLost : null;
+    let h = `<h2>${C.esc(heading)}</h2><div class="readout">`;
+    h += tile("Total", C.fmt(res.total), "as supplied");
+    h += tile("Effective count", res.effectiveN.toFixed(1),
+              `of ${res.items.toLocaleString()} ${nounPlural}`);
+    h += tile("Largest item", `${((res.shares.top1 || 0) * 100).toFixed(0)}%`,
+              `${res.top1xEvenShare.toFixed(0)}x an even share`);
+    h += tile("Lose the top 3", drop3 === null ? "—" : `${drop3.toFixed(0)}%`, "of the total");
+    h += "</div>";
+
+    h += `<div class="tw"><table><thead><tr><th>Rank</th><th>Item</th>` +
+         `<th class="num">Value</th><th class="num">Share</th>` +
+         `<th class="num">Cumulative</th></tr></thead><tbody>`;
+    let cum = 0;
+    res.top.forEach((t, i) => {
+      cum += t.share;
+      const nm = t.name.length > 62 ? t.name.slice(0, 61) + "…" : t.name;
+      h += `<tr><td class="num">${i + 1}</td><td>${C.esc(nm)}</td>` +
+           `<td class="num">${C.esc(C.fmt(t.value))}</td>` +
+           `<td class="num">${(t.share * 100).toFixed(1)}%</td>` +
+           `<td class="num">${(cum * 100).toFixed(1)}%</td></tr>`;
+    });
+    h += "</tbody></table></div>";
+
+    if (res.top.length >= 3) {
+      h += `<div class="card">${C.hbar(res.top.map(t => t.name), res.top.map(t => t.value),
+             { title: `Top ${res.top.length} by share` })}</div>`;
+    }
+    h += `<div class="rnote">Gini ${res.gini.toFixed(2)} — ${C.esc(res.band)}. ` +
+         `Averages across these ${C.esc(nounPlural)} describe no actual item and ` +
+         `should not be used to project the effect of adding more.</div>`;
+    return h;
+  }
+
+  function vintageSection(vints, repl) {
+    let h = `<h2>Is the value being renewed?</h2><div class="tw"><table><thead><tr>` +
+            `<th>Vintage</th><th class="num">Items</th><th class="num">Total</th>` +
+            `<th class="num">Share</th><th class="num">Median / item</th>` +
+            `</tr></thead><tbody>`;
+    for (const v of vints) {
+      h += `<tr><td>${C.esc(v.period)}</td><td class="num">${v.items.toLocaleString()}</td>` +
+           `<td class="num">${C.esc(C.fmt(v.total))}</td>` +
+           `<td class="num">${(v.share * 100).toFixed(1)}%</td>` +
+           `<td class="num">${C.esc(C.fmt(v.medianPerItem))}</td></tr>`;
+    }
+    h += "</tbody></table></div>";
+    h += `<div class="card">${C.bar(vints.map(v => v.period), vints.map(v => v.medianPerItem),
+           { title: "Median value per item, by publish cohort",
+             subtitle: "falling bars mean new work earns less than old work did" })}</div>`;
+    if (repl) {
+      h += `<div class="rnote">Replacement ratio <b>${repl.ratio.toFixed(2)}x</b> ` +
+           `(${C.esc(C.fmt(repl.newMedian))} newest vs ${C.esc(C.fmt(repl.oldMedian))} oldest, ` +
+           `per item). Older items have had longer to accumulate, so this ratio is ` +
+           `biased <i>in favour of old work</i>. ` +
+           (repl.ratio >= 1
+             ? "A ratio above 1.0 despite that handicap is strong evidence the asset is being renewed."
+             : "A ratio below 1.0 is suggestive but not conclusive — the age handicap alone could " +
+               "explain it. Settling this needs per-item performance at equal age, which cumulative " +
+               "totals cannot show.") + `</div>`;
+    }
+    return h;
+  }
+
+  function trendSection(series, diag, shifts, flags) {
+    const ys = series.pts.map(p => p.value);
+    const xs = series.pts.map(p => E.iso(p.date));
+    const first = ys[0], last = ys[ys.length - 1];
+    const half = Math.floor(ys.length / 2);
+    const early = ys.slice(0, half).reduce((a, b) => a + b, 0) / Math.max(1, half);
+    const recent = ys.slice(half).reduce((a, b) => a + b, 0) / Math.max(1, ys.length - half);
+
+    let h = `<h2>Is the trend real?</h2><div class="readout">`;
+    h += tile("First → last", first ? `${(((last - first) / first) * 100).toFixed(0)}%` : "—",
+              `${C.fmt(first)} → ${C.fmt(last)}`);
+    h += tile("2nd half vs 1st", early ? `${(((recent - early) / early) * 100).toFixed(0)}%` : "—",
+              "period averages");
+    h += tile("Level shifts", String(shifts.length), "sustained, not spikes");
+    h += tile("Point anomalies", String(flags.length), "outlier periods");
+    h += "</div>";
+    h += `<div class="card">${C.line(xs, ys, { title: series.label, subtitle: "per period as supplied" })}</div>`;
+
+    if (shifts.length) {
+      h += `<div class="tw"><table><thead><tr><th>From</th><th>Through</th>` +
+           `<th>Direction</th><th class="num">Periods</th></tr></thead><tbody>`;
+      for (const s of shifts) {
+        h += `<tr><td>${C.esc(s.date)}</td><td>${C.esc(s.until)}</td>` +
+             `<td>${C.esc(s.direction)}</td><td class="num">${s.points}</td></tr>`;
+      }
+      h += `</tbody></table></div><div class="rnote">A sustained level shift is a ` +
+           `different event from a spike. Any trailing average spanning one of these ` +
+           `dates blends two regimes and describes neither.</div>`;
+    } else {
+      h += `<div class="rnote">No sustained level shift detected. The series moves, ` +
+           `but not more than its own history predicts.</div>`;
+    }
+    return h;
+  }
+
+  function buildReport() {
+    el("notes").innerHTML = "";
+    let pages = null, revenue = null, series = null;
+    try {
+      pages = collectItems("pages");
+      revenue = collectItems("revenue");
+      series = collectSeries();
+    } catch (err) {
+      note(err.message, "error");
+      return;
+    }
+    if (!pages && !revenue && !series) {
+      note("Add at least one file before building a report.", "error");
+      return;
+    }
+
+    const gaps = [], quality = [];
+    let pageRes = null, vints = null, repl = null, revRes = null, trend = null;
+
+    if (pages) {
+      pageRes = E.analyze(pages.items, 10);
+      if (pages.dateCol) {
+        if (pages.dated.length >= 4) {
+          vints = E.vintages(pages.dated, el("period").value);
+          repl = E.replacement(vints);
+        } else {
+          gaps.push("Publish dates were supplied but fewer than four rows carried a " +
+                    "usable one, so no vintage analysis was possible.");
+        }
+      } else {
+        gaps.push("No publish-date column was chosen, so whether the asset is being " +
+                  "renewed or run down is unknown. This is usually the most important " +
+                  "open question.");
+      }
+      if (pages.blank) quality.push(`${pages.blank} row(s) in ${pages.file} had a blank value and were excluded — blank means "not reported", not zero.`);
+      if (pages.negative) quality.push(`${pages.negative} row(s) in ${pages.file} were negative and excluded.`);
+    } else {
+      gaps.push("No per-item breakdown was supplied, so concentration of traffic or " +
+                "output could not be assessed.");
+    }
+
+    if (revenue) {
+      revRes = E.analyze(revenue.items, 10);
+      if (revenue.blank) quality.push(`${revenue.blank} row(s) in ${revenue.file} were blank and excluded.`);
+      if (revenue.negative) quality.push(`${revenue.negative} row(s) in ${revenue.file} were negative and excluded. Net refunds against their line before re-running.`);
+    } else {
+      gaps.push("No revenue breakdown was supplied, so dependence on a single " +
+                "advertiser, sponsor, or channel is unknown.");
+    }
+
+    if (series) {
+      const diag = E.detect(series.pts, 12, 3.0, null);
+      trend = { diag, shifts: E.cusum(diag), flags: diag.filter(d => d.flag) };
+    } else {
+      gaps.push("No time series was supplied, so whether the trend is genuine could " +
+                "not be tested.");
+    }
+    gaps.push("Nothing here verifies that the supplied numbers are truthful. Confirm " +
+              "them at source.");
+
+    const fs = E.findings({ pageRes, vints, repl, revRes, trend });
+    const client = el("client").value.trim() || "Untitled analysis";
+    const preparedFor = el("prepared").value.trim() || "internal review";
+    const date = new Date().toLocaleDateString(undefined,
+      { day: "numeric", month: "long", year: "numeric" });
+
+    let h = `<header class="rep-head"><div class="eyebrow">Metric analysis · prepared for ${C.esc(preparedFor)}</div>` +
+            `<h1>${C.esc(client)}</h1><div class="meta"><span><b>${C.esc(date)}</b></span>`;
+    if (pageRes) h += `<span><b>${pageRes.items.toLocaleString()}</b> items</span>`;
+    if (series) h += `<span><b>${series.pts.length}</b> periods</span>`;
+    h += `<span><b>${fs.length}</b> findings</span></div></header>`;
+
+    h += `<section><h2>Findings</h2>`;
+    for (const f of fs) {
+      h += `<div class="f"><div class="sev ${f.sev}">${C.esc(f.sev)}</div><div>` +
+           `<div class="t">${C.esc(f.title)}</div><div class="b">${C.esc(f.body)}</div></div></div>`;
+    }
+    h += `</section>`;
+
+    if (revRes) h += `<section>${concentrationSection("What the revenue rests on", revRes, "sources")}</section>`;
+    if (pageRes) h += `<section>${concentrationSection("What the total rests on", pageRes, "items")}</section>`;
+    if (vints) h += `<section>${vintageSection(vints, repl)}</section>`;
+    if (trend) h += `<section>${trendSection(series, trend.diag, trend.shifts, trend.flags)}</section>`;
+
+    h += `<section><h2>What this does not establish</h2><div class="gaps"><ul>`;
+    for (const g of gaps.concat(quality)) h += `<li>${C.esc(g)}</li>`;
+    h += `</ul></div></section>`;
+
+    const brand = el("brand").value.trim();
+    const credit = ATTRIBUTION_REQUIRED || !brand
+      ? `Built with ${TOOL_NAME}`
+      : C.esc(brand);
+    h += `<footer class="rep-foot">This report presents descriptive statistics ` +
+         `computed from data supplied by the client. It is not a valuation, an ` +
+         `appraisal, an audit, or investment advice, and no recommendation to buy, ` +
+         `sell, or price at any figure is made or implied.<br>It cannot establish ` +
+         `whether the underlying figures are accurate or complete.<br>` +
+         `<span class="credit">${credit}</span> · generated in the browser · ` +
+         `no data left this device</footer>`;
+
+    state.report = h;
+    el("report").innerHTML = h;
+    el("report-wrap").hidden = false;
+    el("download").disabled = false;
+    el("report-wrap").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---------- download -----------------------------------------------------
+
+  function downloadReport() {
+    if (!state.report) return;
+    const css = document.getElementById("report-style").textContent;
+    const title = (el("client").value.trim() || "report").replace(/[^\w -]/g, "");
+    const doc = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<title>${C.esc(title)}</title><style>${css}</style></head>` +
+      `<body class="standalone"><div class="rep">${state.report}</div></body></html>`;
+    const blob = new Blob([doc], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${title || "report"}.html`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  // ---------- boot ---------------------------------------------------------
+
+  document.addEventListener("DOMContentLoaded", () => {
+    ["pages", "revenue", "traffic"].forEach(wireDrop);
+    el("build").addEventListener("click", buildReport);
+    el("download").addEventListener("click", downloadReport);
+    el("year").textContent = new Date().getFullYear();
+  });
+})();
+</script>
+</body>
+</html>

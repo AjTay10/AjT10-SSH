@@ -1,7 +1,7 @@
 # Claude configuration — research, analytics, and social
 
 A working Claude setup: **29 skills**, **10 dependency-free tools**, a
-validation hook, and a **126-test adversarial QA suite**. No pip install, no
+validation hook, and a **131-test adversarial QA suite**. No pip install, no
 build step, no API keys.
 
 The skills cover three things that compound: thinking that resists being
@@ -23,7 +23,7 @@ Verify:
 
 ```bash
 python3 qa/validate.py    # config integrity
-python3 qa/selftest.py    # 126 adversarial tests
+python3 qa/selftest.py    # 131 adversarial tests
 ```
 
 ## The skills
@@ -143,6 +143,22 @@ client report generator.
 ```bash
 python3 business/sample.py       # fixtures + a finished sample report
 ```
+
+## The browser tool
+
+[`studio/`](studio/) is Reportcraft: one self-contained HTML file that turns
+a CSV export into a client-ready report. No install, no server, no network —
+files are read in the tab and never transmitted.
+
+```bash
+python3 studio/build.py          # rebuild index.html from source
+node studio/parity.mjs           # prove the JS matches the Python tools
+node studio/browsertest.mjs      # drive it in a real browser
+```
+
+The statistics are a second implementation of what lives in `tools/`, so
+**214 values are compared against the Python original** on every check. Two
+implementations drift silently otherwise.
 
 ## Commands
 
