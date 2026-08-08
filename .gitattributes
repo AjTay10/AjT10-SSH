@@ -20,3 +20,8 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
+
+# RFC 5545 requires CRLF inside .ics files. The blanket `* text=auto` rule
+# above would rewrite them to LF on checkout, which some calendar clients
+# reject outright. Leave them byte-for-byte alone.
+*.ics -text
