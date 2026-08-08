@@ -34,3 +34,19 @@ Icon
 # Files that might appear on external disk
 .Spotlight-V100
 .Trashes
+
+# =========================
+# This repo
+# =========================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Generated analysis output — regenerate, do not commit
+/norm.csv
+/dashboard.html
+/schedule.csv
+/schedule.ics
+*.svg.tmp
+.claude/data/*.tmp

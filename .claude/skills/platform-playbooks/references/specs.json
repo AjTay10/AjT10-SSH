@@ -1,0 +1,181 @@
+{
+  "_reviewed": "2026-08",
+  "_warning": "Specs and ranking behavior change without notice. Verify anything load-bearing against current platform documentation. Ranking fields are inferred models, not published fact.",
+  "_fields": {
+    "discovery": "interest_graph | social_graph | following_feed | search | community | none",
+    "ranks_on": "ordered list, strongest signal first",
+    "view_counted_at": "the event that increments the platform's view counter",
+    "caveat": "the way this platform's numbers mislead if taken at face value"
+  },
+
+  "youtube": {
+    "discovery": ["interest_graph", "search"],
+    "ranks_on": ["satisfaction_weighted_watch_time", "avg_view_duration", "ctr", "session_time"],
+    "formats": {
+      "long": {"aspect": "16:9", "resolution": "1920x1080+", "length": "any"},
+      "shorts": {"aspect": "9:16", "resolution": "1080x1920", "length_max_sec": 180}
+    },
+    "title_max_chars": 100,
+    "description_max_chars": 5000,
+    "thumbnail": {"aspect": "16:9", "min": "1280x720", "max_mb": 2},
+    "view_counted_at": "~30s, or full watch on Shorts",
+    "links_penalized": false,
+    "caveat": "'Impressions' means thumbnail impressions, unlike every other platform. Shorts and long-form share a channel but not an algorithm."
+  },
+
+  "tiktok": {
+    "discovery": ["interest_graph"],
+    "ranks_on": ["completion_rate", "rewatch", "shares", "comments", "watch_time"],
+    "formats": {"video": {"aspect": "9:16", "resolution": "1080x1920", "length_max_sec": 600}},
+    "caption_max_chars": 2200,
+    "view_counted_at": "0s (autoplay)",
+    "links_penalized": false,
+    "follower_count_affects_reach": "minimal",
+    "caveat": "Views count at 0s and are not comparable to YouTube views. Never chart them on one axis."
+  },
+
+  "instagram": {
+    "discovery": ["interest_graph", "social_graph"],
+    "ranks_on": ["sends_per_reach", "watch_time", "saves", "comments", "likes"],
+    "formats": {
+      "reel": {"aspect": "9:16", "resolution": "1080x1920", "length_max_sec": 180},
+      "feed": {"aspect": "4:5 preferred", "resolution": "1080x1350"},
+      "carousel": {"max_slides": 20},
+      "story": {"aspect": "9:16", "length_per_card_sec": 15}
+    },
+    "caption_max_chars": 2200,
+    "hashtag_max": 30,
+    "view_counted_at": "~1s for Reels plays",
+    "links_penalized": false,
+    "caveat": "Reach is unique accounts; impressions are repeated. Visible TikTok watermarks are demoted."
+  },
+
+  "x": {
+    "discovery": ["following_feed", "interest_graph"],
+    "ranks_on": ["dwell_time", "reply_depth", "reposts", "profile_clicks"],
+    "post_max_chars": 280,
+    "post_max_chars_premium": 25000,
+    "formats": {"video": {"length_max_sec": 140, "premium_max_sec": 10800}},
+    "view_counted_at": "render in timeline (includes scroll-past)",
+    "links_penalized": true,
+    "caveat": "Impressions include scroll-past, so ER is structurally 5-10x lower than Instagram. Early velocity in the first 15-30 min largely decides reach."
+  },
+
+  "linkedin": {
+    "discovery": ["social_graph"],
+    "ranks_on": ["dwell_time", "see_more_expansion", "comment_substance", "reshares"],
+    "post_max_chars": 3000,
+    "fold_at_chars": 210,
+    "formats": {"document": {"max_pages": 300}, "video": {"length_max_sec": 600}},
+    "links_penalized": true,
+    "caveat": "Posting more than ~1/day cannibalizes sharply."
+  },
+
+  "facebook": {
+    "discovery": ["social_graph", "community"],
+    "ranks_on": ["meaningful_social_interaction", "comments", "dwell_time"],
+    "post_max_chars": 63206,
+    "view_counted_at": "3s for video",
+    "organic_page_reach": "very low; Groups and paid are the realistic surfaces",
+    "caveat": "Daily reach is deduplicated per day. Summing daily reach over a month overcounts unique people substantially."
+  },
+
+  "reddit": {
+    "discovery": ["community", "search"],
+    "ranks_on": ["early_upvote_velocity", "comment_activity", "subreddit_fit"],
+    "title_max_chars": 300,
+    "caveat": "Vote counts are deliberately fuzzed by the platform; use rank order, not exact numbers. Subreddit rules are enforced by human moderators."
+  },
+
+  "pinterest": {
+    "discovery": ["search", "interest_graph"],
+    "ranks_on": ["saves", "outbound_clicks", "keyword_relevance", "freshness"],
+    "formats": {"pin": {"aspect": "2:3", "resolution": "1000x1500"}},
+    "title_max_chars": 100,
+    "description_max_chars": 500,
+    "caveat": "Impressions accrue for months after publishing. Compare pins at equal age, never at a calendar cutoff."
+  },
+
+  "threads": {
+    "discovery": ["interest_graph"],
+    "ranks_on": ["replies", "time_in_app", "reposts"],
+    "post_max_chars": 500,
+    "view_counted_at": "render",
+    "links_penalized": false,
+    "caveat": "Views are comparable to X impressions, not to Instagram reach."
+  },
+
+  "snapchat": {
+    "discovery": ["social_graph", "interest_graph"],
+    "ranks_on": ["completion", "screenshots", "replies"],
+    "formats": {"snap": {"aspect": "9:16", "length_max_sec": 60}},
+    "caveat": "Story metrics expire; exports cover only the retention window. Spotlight is the only real organic discovery surface."
+  },
+
+  "twitch": {
+    "discovery": ["community", "none"],
+    "ranks_on": ["concurrent_viewers", "time_watched", "raids"],
+    "caveat": "Average concurrent viewers matters, not total views. Discovery is genuinely weak; off-platform clips feed it."
+  },
+
+  "discord": {
+    "discovery": ["none"],
+    "ranks_on": [],
+    "caveat": "No impression denominator exists. Do not compute an engagement rate. Retention surface, not acquisition."
+  },
+
+  "telegram": {
+    "discovery": ["none"],
+    "ranks_on": ["forwards"],
+    "post_max_chars": 4096,
+    "caveat": "Channel view counts are cumulative and permanent. Difference them before charting or every day reads as a spike."
+  },
+
+  "whatsapp": {
+    "discovery": ["none"],
+    "ranks_on": ["forwards"],
+    "caveat": "Largest messaging platform globally; dominant in India, Brazil, Indonesia, Nigeria. Channel metrics limited to views and reactions. Business messaging is template-gated and paid."
+  },
+
+  "bluesky": {
+    "discovery": ["following_feed"],
+    "ranks_on": [],
+    "post_max_chars": 300,
+    "caveat": "Chronological plus custom feeds; no central algorithm. No native analytics export."
+  },
+
+  "douyin": {
+    "discovery": ["interest_graph"],
+    "ranks_on": ["completion_rate", "shares", "live_commerce_conversion"],
+    "region": "CN",
+    "caveat": "Separate app and algorithm from TikTok. Live commerce is the dominant format. Requires domestic entity registration for commercial accounts."
+  },
+
+  "xiaohongshu": {
+    "discovery": ["search", "interest_graph"],
+    "ranks_on": ["saves", "search_relevance", "comments"],
+    "region": "CN",
+    "caveat": "Behaves more like a search engine with a social layer. Dominant for beauty, lifestyle, and travel purchase decisions."
+  },
+
+  "wechat": {
+    "discovery": ["none", "social_graph"],
+    "ranks_on": ["shares_into_private_networks"],
+    "region": "CN",
+    "caveat": "Closed ecosystem with almost no public discovery. Distribution is sharing into private networks."
+  },
+
+  "weibo": {
+    "discovery": ["following_feed", "search"],
+    "ranks_on": ["reposts", "trending_topic_association"],
+    "region": "CN",
+    "caveat": "Public broadcast, celebrity and news driven."
+  },
+
+  "kuaishou": {
+    "discovery": ["interest_graph", "community"],
+    "ranks_on": ["completion_rate", "comments", "live_commerce_conversion"],
+    "region": "CN",
+    "caveat": "Stronger in lower-tier cities; more community-oriented than Douyin."
+  }
+}
