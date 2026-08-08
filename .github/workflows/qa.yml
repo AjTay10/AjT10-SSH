@@ -62,6 +62,11 @@ jobs:
       - name: Demo report is not stale
         run: python3 demo/build.py --check
 
+      - name: Business sample builds
+        run: |
+          python3 business/sample.py --out "$RUNNER_TEMP/sample"
+          test -s "$RUNNER_TEMP/sample/report.html"
+
       - name: Installer is safe to run twice
         run: |
           export CLAUDE_HOME="$RUNNER_TEMP/claude"

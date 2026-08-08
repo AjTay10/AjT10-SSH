@@ -7,7 +7,7 @@ and a QA gate. It is meant to be used, not read.
 
 ```bash
 python3 qa/validate.py      # config integrity — must exit 0
-python3 qa/selftest.py      # 118 adversarial tests — must exit 0
+python3 qa/selftest.py      # 126 adversarial tests — must exit 0
 ```
 
 Both run in CI. A pull request that fails either does not merge.

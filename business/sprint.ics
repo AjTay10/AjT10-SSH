@@ -1,0 +1,95 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//claude-config//calendar_gen//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:20260907-0001-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260907T130000Z
+DTEND:20260907T143000Z
+SUMMARY:Source 20 listings\, log to tracker.csv
+DESCRIPTION:Slot: Source 20 listings\, log to tracker.csv (week 1). Planne
+ d in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260908-0002-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260908T130000Z
+DTEND:20260908T143000Z
+SUMMARY:Free samples 1-3 (20 min each\, then send)
+DESCRIPTION:Slot: Free samples 1-3 (20 min each\, then send) (week 1). Pla
+ nned in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260909-0003-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260909T130000Z
+DTEND:20260909T143000Z
+SUMMARY:Publish teardown #1 (anonymized\, method-first)
+DESCRIPTION:Slot: Publish teardown #1 (anonymized\, method-first) (week 1)
+ . Planned in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260910-0004-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260910T130000Z
+DTEND:20260910T143000Z
+SUMMARY:Free samples 4-5 + broker outreach x3
+DESCRIPTION:Slot: Free samples 4-5 + broker outreach x3 (week 1). Planned 
+ in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260911-0005-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260911T130000Z
+DTEND:20260911T143000Z
+SUMMARY:Follow-ups (one only) + score tracker vs kill criteria
+DESCRIPTION:Slot: Follow-ups (one only) + score tracker vs kill criteria (
+ week 1). Planned in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260914-0006-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260914T130000Z
+DTEND:20260914T143000Z
+SUMMARY:Source 20 listings\, log to tracker.csv
+DESCRIPTION:Slot: Source 20 listings\, log to tracker.csv (week 2). Planne
+ d in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260915-0007-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260915T130000Z
+DTEND:20260915T143000Z
+SUMMARY:Free samples 1-3 (20 min each\, then send)
+DESCRIPTION:Slot: Free samples 1-3 (20 min each\, then send) (week 2). Pla
+ nned in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260916-0008-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260916T130000Z
+DTEND:20260916T143000Z
+SUMMARY:Publish teardown #1 (anonymized\, method-first)
+DESCRIPTION:Slot: Publish teardown #1 (anonymized\, method-first) (week 2)
+ . Planned in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260917-0009-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260917T130000Z
+DTEND:20260917T143000Z
+SUMMARY:Free samples 4-5 + broker outreach x3
+DESCRIPTION:Slot: Free samples 4-5 + broker outreach x3 (week 2). Planned 
+ in America/New_York.
+END:VEVENT
+BEGIN:VEVENT
+UID:20260918-0010-calgen@local
+DTSTAMP:20260101T000000Z
+DTSTART:20260918T130000Z
+DTEND:20260918T143000Z
+SUMMARY:Follow-ups (one only) + score tracker vs kill criteria
+DESCRIPTION:Slot: Follow-ups (one only) + score tracker vs kill criteria (
+ week 2). Planned in America/New_York.
+END:VEVENT
+END:VCALENDAR
