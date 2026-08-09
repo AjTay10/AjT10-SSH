@@ -1351,6 +1351,170 @@ def t_calendar_start_midweek():
 
 
 # ==========================================================================
+# usage — the skill/tool usage report
+# ==========================================================================
+
+def _transcript(d, session, records):
+    """Write a minimal Claude Code transcript."""
+    path = os.path.join(d, f"{session}.jsonl")
+    with open(path, "w", encoding="utf-8") as fh:
+        for r in records:
+            fh.write(json.dumps(r) + "\n")
+    return path
+
+
+def _skill_call(name, ts, session):
+    return {"type": "assistant", "timestamp": ts, "sessionId": session,
+            "cwd": "/home/user/AjT10-SSH",
+            "message": {"content": [{"type": "tool_use", "name": "Skill",
+                                     "input": {"skill": name}}]}}
+
+
+def t_usage_counts_skill_invocations():
+    with tempfile.TemporaryDirectory() as d:
+        _transcript(d, "s1", [_skill_call("red-team", "2026-01-01T10:00:00Z", "s1"),
+                              _skill_call("red-team", "2026-01-01T11:00:00Z", "s1"),
+                              _skill_call("inversion", "2026-01-01T12:00:00Z", "s1")])
+        rc, out, err = run(["tools/usage.py", "--transcripts", d,
+                            "--archive-dir", os.path.join(d, "arch"), "--json"])
+        assert rc == 0, err
+        data = json.loads(out)
+        assert data["skills"]["red-team"] == 2, data["skills"]
+        assert data["skills"]["inversion"] == 1
+        assert data["sessions"] == 1
+
+
+def t_usage_counts_tools_and_commands():
+    with tempfile.TemporaryDirectory() as d:
+        recs = [
+            {"type": "assistant", "timestamp": "2026-01-01T10:00:00Z",
+             "sessionId": "s1", "message": {"content": [
+                 {"type": "tool_use", "name": "Bash",
+                  "input": {"command": "python3 tools/abtest.py compare --a 1/2 --b 1/3"}}]}},
+            {"type": "user", "timestamp": "2026-01-01T10:05:00Z", "sessionId": "s1",
+             "message": {"content": [
+                 {"type": "text", "text": "<command-name>/audit</command-name>"}]}},
+        ]
+        _transcript(d, "s1", recs)
+        rc, out, err = run(["tools/usage.py", "--transcripts", d,
+                            "--archive-dir", os.path.join(d, "arch"), "--json"])
+        assert rc == 0, err
+        data = json.loads(out)
+        assert data["tools"].get("abtest") == 1, data["tools"]
+        assert data["commands"].get("audit") == 1, data["commands"]
+
+
+def t_usage_refuses_a_verdict_on_thin_history():
+    """One session is not evidence that a skill is unwanted. A confident drop
+    list built from it would be worse than no list."""
+    with tempfile.TemporaryDirectory() as d:
+        _transcript(d, "s1", [_skill_call("red-team", "2026-01-01T10:00:00Z", "s1")])
+        rc, out, err = run(["tools/usage.py", "--transcripts", d,
+                            "--archive-dir", os.path.join(d, "arch")])
+        assert rc == 0, err
+        assert "Not enough history" in out, out[-500:]
+        assert "drop candidates" not in out, "offered a drop list on one session"
+
+
+def t_usage_gives_a_verdict_once_history_is_real():
+    with tempfile.TemporaryDirectory() as d:
+        for i in range(6):
+            ts = f"2026-0{1 + i // 3}-{(i * 6) % 28 + 1:02d}T10:00:00Z"
+            _transcript(d, f"s{i}", [_skill_call("red-team", ts, f"s{i}")])
+        rc, out, err = run(["tools/usage.py", "--transcripts", d,
+                            "--archive-dir", os.path.join(d, "arch")])
+        assert rc == 0, err
+        assert "Not enough history" not in out, out[-400:]
+        assert "drop candidates" in out, "withheld a verdict despite the history"
+
+
+def t_usage_archive_holds_no_conversation_text():
+    """The archive is committed, so it must never carry prompts or replies."""
+    secret = "SENSITIVE-CLIENT-NAME-DO-NOT-PERSIST"
+    with tempfile.TemporaryDirectory() as d:
+        arch = os.path.join(d, "arch")
+        # One session has one cwd; make it the sensitive one so the test
+        # proves only the basename is ever written.
+        _transcript(d, "s1", [
+            {"type": "assistant", "timestamp": "2026-01-01T10:00:00Z",
+             "sessionId": "s1", "cwd": "/home/user/secret-project-path",
+             "message": {"content": [{"type": "tool_use", "name": "Skill",
+                                      "input": {"skill": "red-team"}}]}},
+            {"type": "user", "timestamp": "2026-01-01T10:01:00Z", "sessionId": "s1",
+             "cwd": "/home/user/secret-project-path",
+             "message": {"content": [{"type": "text", "text": secret}]}},
+        ])
+        rc, out, err = run(["tools/usage.py", "--transcripts", d,
+                            "--archive-dir", arch, "--archive"])
+        assert rc == 0, err
+        banked = os.path.join(arch, "s1.json")
+        assert os.path.isfile(banked), os.listdir(arch)
+        body = open(banked, encoding="utf-8").read()
+        assert secret not in body, "conversation text leaked into the archive"
+        assert "/home/user/secret-project-path" not in body, \
+            "a full filesystem path leaked into the archive"
+        rec = json.loads(body)
+        assert rec["project"] == "secret-project-path", \
+            "project should be the directory name only"
+        assert set(rec) == {"session", "project", "first", "last",
+                            "skills", "commands", "tools"}, sorted(rec)
+
+
+def t_usage_archive_survives_transcript_loss():
+    """The whole point: history must outlive the container."""
+    with tempfile.TemporaryDirectory() as d:
+        arch = os.path.join(d, "arch")
+        live = os.path.join(d, "live")
+        os.makedirs(live)
+        _transcript(live, "s1", [_skill_call("red-team", "2026-01-01T10:00:00Z", "s1")])
+        rc, _, err = run(["tools/usage.py", "--transcripts", live,
+                          "--archive-dir", arch, "--archive"])
+        assert rc == 0, err
+
+        # Container reclaimed: transcripts gone, a new session begins.
+        os.remove(os.path.join(live, "s1.jsonl"))
+        _transcript(live, "s2", [_skill_call("inversion", "2026-02-01T10:00:00Z", "s2")])
+        rc, out, err = run(["tools/usage.py", "--transcripts", live,
+                            "--archive-dir", arch, "--json"])
+        assert rc == 0, err
+        data = json.loads(out)
+        assert data["sessions"] == 2, f"lost the archived session: {data['sessions']}"
+        assert data["skills"].get("red-team") == 1, \
+            "the archived session's counts were dropped"
+        assert data["skills"].get("inversion") == 1
+
+
+def t_usage_archive_is_idempotent():
+    with tempfile.TemporaryDirectory() as d:
+        arch = os.path.join(d, "arch")
+        _transcript(d, "s1", [_skill_call("red-team", "2026-01-01T10:00:00Z", "s1")])
+        run(["tools/usage.py", "--transcripts", d, "--archive-dir", arch, "--archive"])
+        before = open(os.path.join(arch, "s1.json"), encoding="utf-8").read()
+        rc, _, err = run(["tools/usage.py", "--transcripts", d,
+                          "--archive-dir", arch, "--archive"])
+        assert rc == 0, err
+        assert open(os.path.join(arch, "s1.json"), encoding="utf-8").read() == before
+        assert not [f for f in os.listdir(arch) if f.endswith(".tmp")], \
+            "left a temp file behind"
+
+
+def t_usage_handles_missing_and_corrupt_input():
+    rc, out, err = run(["tools/usage.py", "--transcripts", "/nope/missing"])
+    expect_clean_error(rc, out, err, "missing transcript directory")
+    with tempfile.TemporaryDirectory() as d:
+        rc, out, err = run(["tools/usage.py", "--transcripts", d])
+        expect_clean_error(rc, out, err, "empty transcript directory")
+        # A truncated final line is normal and must not crash the report.
+        with open(os.path.join(d, "s1.jsonl"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(_skill_call("red-team", "2026-01-01T10:00:00Z", "s1")) + "\n")
+            fh.write('{"type": "assistant", "message": {"cont')
+        rc, out, err = run(["tools/usage.py", "--transcripts", d,
+                            "--archive-dir", os.path.join(d, "a"), "--json"])
+        assert rc == 0, f"a truncated line broke the report: {err}"
+        assert json.loads(out)["skills"]["red-team"] == 1
+
+
+# ==========================================================================
 # studio — the browser tool
 # ==========================================================================
 

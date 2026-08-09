@@ -1,7 +1,7 @@
 # Claude configuration — research, analytics, and social
 
-A working Claude setup: **28 skills**, **10 dependency-free tools**, a
-validation hook, and a **126-test adversarial QA suite**. No pip install, no
+A working Claude setup: **28 skills**, **11 dependency-free tools**, a
+validation hook, and a **134-test adversarial QA suite**. No pip install, no
 build step, no API keys.
 
 The skills cover three things that compound: thinking that resists being
@@ -23,7 +23,7 @@ Verify:
 
 ```bash
 python3 qa/validate.py    # config integrity
-python3 qa/selftest.py    # 126 adversarial tests
+python3 qa/selftest.py    # 134 adversarial tests
 ```
 
 ## The skills
@@ -132,6 +132,22 @@ python3 demo/build.py --check    # fail if the committed page is stale
 Every number and terminal block on that page is captured from a live subprocess
 run, so nothing in the copy can disagree with what the tools actually output.
 
+## Which skills are actually earning their place
+
+```bash
+python3 tools/usage.py --archive     # bank this session, then report
+```
+
+Reads Claude Code's own transcripts and reports what has fired: skills,
+slash commands, and `tools/*.py`. It **refuses to call anything unused** below
+5 sessions and 14 days, because a skill absent from one session had no occasion
+to fire — it was not rejected.
+
+Web containers are reclaimed after inactivity, so transcripts do not survive
+between sessions. `--archive` banks a small per-session tally into
+`.claude/data/usage/` — **counts and dates only, never conversation text** —
+which is safe to commit and is what lets history accumulate at all.
+
 ## The browser tool
 
 [`studio/`](studio/) is Reportcraft: one self-contained HTML file that turns
@@ -156,8 +172,9 @@ implementations drift silently otherwise.
 
 ## Commands
 
-`/audit` — validate everything · `/numbers` — exports to dashboard ·
-`/attack` — stress-test a plan · `/gap` — niche teardown
+`/audit` — validate everything · `/usage` — what actually gets used ·
+`/numbers` — exports to dashboard · `/attack` — stress-test a plan ·
+`/gap` — niche teardown
 
 ## What makes this different
 
