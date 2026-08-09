@@ -3,8 +3,8 @@
  *   node studio/browsertest.mjs [--screenshot out.png]
  *
  * Parity proves the arithmetic is right; this proves a person can actually use
- * it. It loads studio/index.html from disk, feeds it the committed sample
- * exports, builds a report, and checks the findings and the download path.
+ * it. It loads studio/index.html from disk, feeds it the committed fixtures,
+ * builds a report, and checks the findings and the download path.
  *
  * Playwright is a dev-time dependency only — the product itself has none.
  * Skips with exit 0 when Playwright is absent so the rest of QA still runs.
@@ -17,8 +17,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = dirname(HERE);
-const SAMPLE = join(ROOT, "business", "sample");
+const FIXTURES = join(HERE, "fixtures");
 const INDEX = join(HERE, "index.html");
 
 let chromium;
@@ -45,8 +44,8 @@ const fail = (msg) => { console.error("browsertest: " + msg); process.exit(1); }
 
 if (!existsSync(INDEX)) fail("studio/index.html missing — run python3 studio/build.py");
 for (const f of ["pages.csv", "revenue.csv", "traffic.csv"]) {
-  if (!existsSync(join(SAMPLE, f))) {
-    fail(`business/sample/${f} missing — run python3 business/sample.py`);
+  if (!existsSync(join(FIXTURES, f))) {
+    fail(`studio/fixtures/${f} missing — run python3 studio/fixtures.py`);
   }
 }
 
@@ -89,9 +88,9 @@ page.on("request", (r) => {
 await page.goto(pathToFileURL(INDEX).href);
 
 // ---- load the three fixtures -------------------------------------------
-await page.setInputFiles("#pages-input", join(SAMPLE, "pages.csv"));
-await page.setInputFiles("#revenue-input", join(SAMPLE, "revenue.csv"));
-await page.setInputFiles("#traffic-input", join(SAMPLE, "traffic.csv"));
+await page.setInputFiles("#pages-input", join(FIXTURES, "pages.csv"));
+await page.setInputFiles("#revenue-input", join(FIXTURES, "revenue.csv"));
+await page.setInputFiles("#traffic-input", join(FIXTURES, "traffic.csv"));
 await page.waitForSelector("#pages-fields:not([hidden])");
 
 // ---- column auto-detection ---------------------------------------------
@@ -191,7 +190,7 @@ if (!/below 3/.test(err)) fail(`error message is unhelpful: ${err}`);
 console.log("  ok    a too-small file fails with a message that names the fix");
 
 if (shot) {
-  await page.setInputFiles("#pages-input", join(SAMPLE, "pages.csv"));
+  await page.setInputFiles("#pages-input", join(FIXTURES, "pages.csv"));
   await page.waitForTimeout(200);
   await page.click("#build");
   await page.waitForSelector("#report-wrap:not([hidden])");

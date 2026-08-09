@@ -14,8 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = dirname(HERE);
-const SAMPLE = join(ROOT, "business", "sample");
+const FIXTURES = join(HERE, "fixtures");
 const require = createRequire(import.meta.url);
 const Engine = require(join(HERE, "engine.js"));
 
@@ -51,7 +50,7 @@ function same(name, got, want) {
 }
 
 function loadItems(file, itemCol, valueCol, dateCol) {
-  const { rows } = Engine.parseCSV(readFileSync(join(SAMPLE, file), "utf8"));
+  const { rows } = Engine.parseCSV(readFileSync(join(FIXTURES, file), "utf8"));
   const items = [], dated = [];
   for (const r of rows) {
     const v = Engine.num(r[valueCol], valueCol);
@@ -144,7 +143,7 @@ function loadItems(file, itemCol, valueCol, dateCol) {
 
 // ---------- trend ------------------------------------------------------------
 {
-  const { rows } = Engine.parseCSV(readFileSync(join(SAMPLE, "traffic.csv"), "utf8"));
+  const { rows } = Engine.parseCSV(readFileSync(join(FIXTURES, "traffic.csv"), "utf8"));
   const pts = [];
   for (const r of rows) {
     const v = Engine.num(r.sessions, "sessions");

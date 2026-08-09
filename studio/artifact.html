@@ -290,10 +290,10 @@ font-family:var(--r-mono);font-size:11.5px;color:var(--r-ink-3);line-height:1.8}
       <option value="month">Month</option>
     </select>
   </label>
-  <label>Your name in the footer
-    <input type="text" id="brand" placeholder="Free version credits Reportcraft" disabled>
-    <span class="hint">Custom footer branding is the paid upgrade. There is no
-    billing in this build, so the field is disabled rather than pretending.</span>
+  <label>Footer credit
+    <input type="text" id="brand" placeholder="Your name, or leave blank">
+    <span class="hint">Appears at the bottom of the report. Blank credits
+    Reportcraft.</span>
   </label>
 </div>
 
@@ -928,10 +928,8 @@ const Charts = (() => {
   const $ = (sel) => document.querySelector(sel);
   const el = (id) => document.getElementById(id);
 
-  // The single switch between free and paid behaviour. There is no billing in
-  // this build and pretending otherwise would be dishonest; a licensed build
-  // flips this and reads the branding field instead of stamping attribution.
-  const ATTRIBUTION_REQUIRED = true;
+  // Whatever you type in the footer field is what the report is credited to.
+  // Leave it blank and it falls back to the tool name.
   const TOOL_NAME = "Reportcraft";
 
   const state = { pages: null, revenue: null, traffic: null, report: null };
@@ -1279,9 +1277,7 @@ const Charts = (() => {
     h += `</ul></div></section>`;
 
     const brand = el("brand").value.trim();
-    const credit = ATTRIBUTION_REQUIRED || !brand
-      ? `Built with ${TOOL_NAME}`
-      : C.esc(brand);
+    const credit = C.esc(brand || `Built with ${TOOL_NAME}`);
     h += `<footer class="rep-foot">This report presents descriptive statistics ` +
          `computed from data supplied by the client. It is not a valuation, an ` +
          `appraisal, an audit, or investment advice, and no recommendation to buy, ` +

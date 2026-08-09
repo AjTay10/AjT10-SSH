@@ -87,6 +87,32 @@ Per-cohort size and per-user value. Rising per-user value across cohorts means
 targeting improved; falling means growth is being bought at declining quality —
 which shows up here months before it shows up in the top-line number.
 
+## Concentration — what does the total rest on?
+
+A total tells you the size of something, never its fragility. Two accounts with
+identical revenue are different assets if one earns it from four hundred
+sources and the other from three.
+
+```bash
+python3 tools/concentration.py --csv pages.csv --item url --value pageviews
+python3 tools/concentration.py --csv revenue.csv --item source --value amount
+python3 tools/concentration.py --csv posts.csv --item id --value revenue \
+    --date published --decay --period year
+```
+
+Read `effective count` first — "13.2 of 382" means that despite 382 items the
+total behaves like thirteen. Then read `remove the top 1`, which states the
+dominant risk in one line.
+
+`--decay` adds vintage analysis. The signal worth looking for is **production
+rising while yield falls**: more items published each period, less earned per
+item. That is an asset working harder to stand still, and no total reveals it.
+
+The replacement ratio is biased *in favour of older items*, because they have
+had longer to accumulate. A ratio above 1.0 despite that handicap is strong;
+below 1.0 is suggestive but not conclusive, and needs per-item performance at
+equal age to settle. The tool says so itself — do not overstate it.
+
 ## Chaining to charts
 
 ```bash
@@ -126,4 +152,5 @@ Every one of these has silently corrupted a real analysis:
 
 - `stat-guard` — before claiming any of these differences is real
 - `anomaly-watch` — for when a metric breaks rather than trends
+- `data-clean` — profile the export before trusting any of this
 - `chart-forge` — to render the result

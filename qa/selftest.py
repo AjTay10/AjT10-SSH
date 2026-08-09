@@ -1351,133 +1351,26 @@ def t_calendar_start_midweek():
 
 
 # ==========================================================================
-# business/report_build — the client deliverable
-# ==========================================================================
-
-def t_report_needs_some_input():
-    rc, out, err = run(["business/report_build.py", "--client", "x",
-                        "--out", "/tmp/unused.html"])
-    expect_clean_error(rc, out, err, "report with no inputs")
-    assert "--pages" in err, "error should name the flags that would fix it"
-
-
-def t_report_rejects_thin_series():
-    """Six periods is the floor. Below it, say so rather than charting noise."""
-    with tempfile.TemporaryDirectory() as d:
-        p = write(d, "t.csv", "m,s\n2026-01-01,5\n2026-02-01,6\n2026-03-01,7\n")
-        rc, out, err = run(["business/report_build.py", "--client", "x",
-                            "--traffic", p, "--traffic-date", "m",
-                            "--traffic-value", "s",
-                            "--out", os.path.join(d, "r.html")])
-        expect_clean_error(rc, out, err, "3-period series")
-        assert "6" in err, "error should name the minimum"
-
-
-def t_report_omits_rather_than_invents():
-    """Sections for absent data must be missing AND declared missing."""
-    with tempfile.TemporaryDirectory() as d:
-        rows = ["source,amount"] + [f"s{i},{100 + i * 40}" for i in range(8)]
-        p = write(d, "rev.csv", "\n".join(rows) + "\n")
-        out_html = os.path.join(d, "r.html")
-        rc, out, err = run(["business/report_build.py", "--client", "Acme",
-                            "--revenue", p, "--rev-item", "source",
-                            "--rev-value", "amount", "--out", out_html])
-        assert rc == 0, err
-        h = open(out_html, encoding="utf-8").read()
-        assert "Is the trend real?" not in h, "invented a trend section"
-        assert "Is the value being renewed?" not in h, "invented a vintage section"
-        assert "no traffic or revenue time series was supplied" in h.lower(), \
-            "did not declare the missing time series"
-        assert "no per-page or per-item breakdown" in h.lower(), \
-            "did not declare the missing page breakdown"
-
-
-def t_report_always_states_its_limits():
-    with tempfile.TemporaryDirectory() as d:
-        rows = ["source,amount"] + [f"s{i},{100 + i * 40}" for i in range(8)]
-        p = write(d, "rev.csv", "\n".join(rows) + "\n")
-        out_html = os.path.join(d, "r.html")
-        rc, _, err = run(["business/report_build.py", "--client", "Acme",
-                          "--revenue", p, "--rev-item", "source",
-                          "--rev-value", "amount", "--out", out_html])
-        assert rc == 0, err
-        h = open(out_html, encoding="utf-8").read().lower()
-        for required in ("not a valuation", "investment advice",
-                         "does not establish"):
-            assert required in h, f"deliverable omits {required!r}"
-
-
-def t_report_is_self_contained():
-    with tempfile.TemporaryDirectory() as d:
-        rows = ["source,amount"] + [f"s{i},{100 + i * 40}" for i in range(8)]
-        p = write(d, "rev.csv", "\n".join(rows) + "\n")
-        out_html = os.path.join(d, "r.html")
-        run(["business/report_build.py", "--client", "Acme", "--revenue", p,
-             "--rev-item", "source", "--rev-value", "amount",
-             "--out", out_html])
-        h = open(out_html, encoding="utf-8").read()
-        scan = h.replace('xmlns="http://www.w3.org/2000/svg"', "")
-        for bad in ("http://", "https://", "<script", "fetch(", "cdn.",
-                    "@import", "<link"):
-            assert bad not in scan, f"report is not self-contained: {bad}"
-        assert "prefers-color-scheme" in h, "no dark theme"
-
-
-def t_report_escapes_client_data():
-    """Client names and page URLs are untrusted input in a document you send on."""
-    with tempfile.TemporaryDirectory() as d:
-        rows = ["source,amount", "<script>alert(1)</script>,500"]
-        rows += [f"s{i},{100 + i * 40}" for i in range(6)]
-        p = write(d, "rev.csv", "\n".join(rows) + "\n")
-        out_html = os.path.join(d, "r.html")
-        rc, _, err = run(["business/report_build.py",
-                          "--client", "<img src=x onerror=alert(1)>",
-                          "--revenue", p, "--rev-item", "source",
-                          "--rev-value", "amount", "--out", out_html])
-        assert rc == 0, err
-        h = open(out_html, encoding="utf-8").read()
-        assert "<script>alert" not in h, "row label injected as markup"
-        assert "<img src=x" not in h, "client name injected as live markup"
-        assert "&lt;img src=x" in h, "client name should survive as inert text"
-        assert "&lt;script&gt;alert" in h, "row label should survive escaped"
-
-
-def t_report_findings_are_ranked():
-    """Critical must precede major, or the reader acts on the wrong thing."""
-    with tempfile.TemporaryDirectory() as d:
-        rows = ["source,amount", "dominant,9000"]
-        rows += [f"s{i},{50 + i}" for i in range(9)]
-        p = write(d, "rev.csv", "\n".join(rows) + "\n")
-        out_html = os.path.join(d, "r.html")
-        run(["business/report_build.py", "--client", "Acme", "--revenue", p,
-             "--rev-item", "source", "--rev-value", "amount",
-             "--out", out_html])
-        h = open(out_html, encoding="utf-8").read()
-        order = [m for m in re.findall(r'class="sev (\w+)"', h)]
-        rank = {"critical": 0, "major": 1, "note": 2, "clear": 3}
-        assert order == sorted(order, key=lambda s: rank[s]), order
-        assert order and order[0] == "critical", \
-            f"a 90%-of-revenue source did not rank critical: {order}"
-
-
-def t_sample_is_deterministic():
-    """The committed sample must not drift between runs."""
-    with tempfile.TemporaryDirectory() as d:
-        first = os.path.join(d, "a")
-        second = os.path.join(d, "b")
-        for target in (first, second):
-            rc, out, err = run(["business/sample.py", "--out", target])
-            assert rc == 0, err
-        ha = open(os.path.join(first, "report.html"), encoding="utf-8").read()
-        hb = open(os.path.join(second, "report.html"), encoding="utf-8").read()
-        assert ha == hb, "two sample runs produced different reports"
-        assert "Production up, yield down" in ha, \
-            "the sample no longer demonstrates the decay finding"
-
-
-# ==========================================================================
 # studio — the browser tool
 # ==========================================================================
+
+def t_studio_fixtures_are_deterministic():
+    """parity_expected.json is derived from these, so drift here would surface
+    as a false parity failure rather than as the fixture bug it is."""
+    with tempfile.TemporaryDirectory() as d:
+        a, b = os.path.join(d, "a"), os.path.join(d, "b")
+        for target in (a, b):
+            rc, out, err = run(["studio/fixtures.py", "--out", target])
+            assert rc == 0, err
+        for name in ("pages.csv", "revenue.csv", "traffic.csv"):
+            first = open(os.path.join(a, name), encoding="utf-8").read()
+            second = open(os.path.join(b, name), encoding="utf-8").read()
+            assert first == second, f"{name} differs between runs"
+            committed = os.path.join(ROOT, "studio", "fixtures", name)
+            assert os.path.isfile(committed), f"studio/fixtures/{name} missing"
+            assert open(committed, encoding="utf-8").read() == first, \
+                f"studio/fixtures/{name} is stale — run python3 studio/fixtures.py"
+
 
 def t_studio_build_is_current():
     """Editing engine.js without rebuilding would ship a tool that differs
@@ -1530,15 +1423,15 @@ def t_studio_states_its_limits():
         assert required in html, f"studio/index.html omits {required!r}"
 
 
-def t_studio_no_fake_billing():
-    """The branding field is disabled because there is no billing. If that
-    ever changes, it must be a deliberate edit, not a drift."""
-    app = open(os.path.join(ROOT, "studio", "app.js"), encoding="utf-8").read()
-    tpl = open(os.path.join(ROOT, "studio", "template.html"), encoding="utf-8").read()
-    assert "ATTRIBUTION_REQUIRED = true" in app, \
-        "attribution switch flipped without billing existing"
-    assert 'id="brand"' in tpl and "disabled" in tpl, \
-        "branding input should stay disabled while there is no billing"
+def t_studio_has_no_paywall():
+    """This is a personal tool. Nothing in it should gate a feature behind a
+    purchase that does not exist."""
+    for fn in ("app.js", "template.html", "README.md"):
+        text = open(os.path.join(ROOT, "studio", fn), encoding="utf-8").read()
+        low = text.lower()
+        for word in ("paid upgrade", "paid tier", "billing", "subscription",
+                     "free version"):
+            assert word not in low, f"studio/{fn} still mentions {word!r}"
 
 
 def t_studio_parity_fixture_is_current():

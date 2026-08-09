@@ -195,7 +195,6 @@ def check_python():
     qa = os.path.join(ROOT, "qa")
     seen = 0
     for base in (tools, qa, os.path.join(ROOT, "demo"),
-                 os.path.join(ROOT, "business"),
                  os.path.join(ROOT, "studio"),
                  os.path.join(ROOT, ".claude", "hooks")):
         if not os.path.isdir(base):

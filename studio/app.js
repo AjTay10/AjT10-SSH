@@ -13,10 +13,8 @@
   const $ = (sel) => document.querySelector(sel);
   const el = (id) => document.getElementById(id);
 
-  // The single switch between free and paid behaviour. There is no billing in
-  // this build and pretending otherwise would be dishonest; a licensed build
-  // flips this and reads the branding field instead of stamping attribution.
-  const ATTRIBUTION_REQUIRED = true;
+  // Whatever you type in the footer field is what the report is credited to.
+  // Leave it blank and it falls back to the tool name.
   const TOOL_NAME = "Reportcraft";
 
   const state = { pages: null, revenue: null, traffic: null, report: null };
@@ -364,9 +362,7 @@
     h += `</ul></div></section>`;
 
     const brand = el("brand").value.trim();
-    const credit = ATTRIBUTION_REQUIRED || !brand
-      ? `Built with ${TOOL_NAME}`
-      : C.esc(brand);
+    const credit = C.esc(brand || `Built with ${TOOL_NAME}`);
     h += `<footer class="rep-foot">This report presents descriptive statistics ` +
          `computed from data supplied by the client. It is not a valuation, an ` +
          `appraisal, an audit, or investment advice, and no recommendation to buy, ` +

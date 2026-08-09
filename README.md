@@ -1,7 +1,7 @@
 # Claude configuration — research, analytics, and social
 
-A working Claude setup: **29 skills**, **10 dependency-free tools**, a
-validation hook, and a **133-test adversarial QA suite**. No pip install, no
+A working Claude setup: **28 skills**, **10 dependency-free tools**, a
+validation hook, and a **126-test adversarial QA suite**. No pip install, no
 build step, no API keys.
 
 The skills cover three things that compound: thinking that resists being
@@ -23,7 +23,7 @@ Verify:
 
 ```bash
 python3 qa/validate.py    # config integrity
-python3 qa/selftest.py    # 133 adversarial tests
+python3 qa/selftest.py    # 126 adversarial tests
 ```
 
 ## The skills
@@ -54,11 +54,10 @@ python3 qa/selftest.py    # 133 adversarial tests
 | | |
 |---|---|
 | `chart-forge` | Chart chosen by the question, not by the data's shape. |
-| `metrics-lab` | Funnels, cohorts, retention, growth. |
+| `metrics-lab` | Funnels, cohorts, retention, growth, concentration. |
 | `stat-guard` | Significance, sample size, Bayesian read, the cost of peeking. |
 | `anomaly-watch` | Trend-aware robust detection. Changepoints, not just spikes. |
 | `data-clean` | The specific ways platform exports lie. |
-| `deal-diligence` | Is this asset worth the ask? Concentration, decay, trend reality. |
 
 **Social**
 
@@ -97,7 +96,7 @@ python3 tools/abtest.py size --baseline 0.03 --lift 0.15 --daily 1200
 # Did the metric actually break, or is it just moving?
 python3 tools/anomaly.py --csv daily.csv --date date --value views --seasonal weekly
 
-# What does this total actually rest on? (acquisition diligence)
+# What does this total actually rest on?
 python3 tools/concentration.py --csv pages.csv --item url --value pageviews
 python3 tools/concentration.py --csv posts.csv --item id --value revenue \
     --date published --decay --period year
@@ -132,17 +131,6 @@ python3 demo/build.py --check    # fail if the committed page is stale
 
 Every number and terminal block on that page is captured from a live subprocess
 run, so nothing in the copy can disagree with what the tools actually output.
-
-## A worked application
-
-[`business/`](business/) applies the toolchain to one thing end to end:
-metric diligence on online-business acquisitions. Deal-volume verification with
-sources, a decision record with pre-committed kill criteria, and a one-command
-client report generator.
-
-```bash
-python3 business/sample.py       # fixtures + a finished sample report
-```
 
 ## The browser tool
 
