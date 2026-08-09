@@ -1497,6 +1497,33 @@ def t_studio_is_self_contained():
         assert bad not in scan, f"studio/index.html reaches the network: {bad}"
 
 
+def t_studio_pages_copy_matches():
+    """docs/index.html is what the public URL serves. If it drifts from
+    studio/index.html the hosted tool silently differs from the source."""
+    a = os.path.join(ROOT, "studio", "index.html")
+    b = os.path.join(ROOT, "docs", "index.html")
+    assert os.path.isfile(b), "docs/index.html missing — run studio/build.py"
+    assert open(a, encoding="utf-8").read() == open(b, encoding="utf-8").read(), \
+        "docs/index.html differs from studio/index.html"
+
+
+def t_studio_artifact_fragment_is_whole():
+    """The fragment is produced by unwrapping the document. app.js contains the
+    literal string '</body></html>' inside a template literal, which a
+    non-greedy regex matches — truncating the file mid-script, silently."""
+    p = os.path.join(ROOT, "studio", "artifact.html")
+    assert os.path.isfile(p), "studio/artifact.html missing"
+    frag = open(p, encoding="utf-8").read()
+    assert frag.count("<script>") == frag.count("</script>") == 3, \
+        f"fragment truncated: {frag.count('<script>')} open, " \
+        f"{frag.count('</script>')} close"
+    assert frag.startswith("<title>"), "fragment should start with its title"
+    outside = re.sub(r"<script>.*?</script>", "", frag, flags=re.S).lower()
+    for tag in ("html", "head", "body"):
+        assert not re.search(rf"</?{tag}[\s>]", outside), \
+            f"fragment still carries a <{tag}> document tag"
+
+
 def t_studio_states_its_limits():
     html = open(os.path.join(ROOT, "studio", "index.html"), encoding="utf-8").read()
     for required in ("not a valuation", "never transmitted", "Descriptive statistics"):

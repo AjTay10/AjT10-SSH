@@ -379,25 +379,59 @@
     el("report").innerHTML = h;
     el("report-wrap").hidden = false;
     el("download").disabled = false;
+    el("print").disabled = false;
     el("report-wrap").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   // ---------- download -----------------------------------------------------
 
-  function downloadReport() {
-    if (!state.report) return;
+  function standaloneDoc() {
     const css = document.getElementById("report-style").textContent;
     const title = (el("client").value.trim() || "report").replace(/[^\w -]/g, "");
-    const doc = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
-      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>${C.esc(title)}</title><style>${css}</style></head>` +
-      `<body class="standalone"><div class="rep">${state.report}</div></body></html>`;
-    const blob = new Blob([doc], { type: "text/html" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${title || "report"}.html`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    return {
+      title: title || "report",
+      html: `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+        `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+        `<title>${C.esc(title)}</title><style>${css}</style></head>` +
+        `<body class="standalone"><div class="rep">${state.report}</div></body></html>`,
+    };
+  }
+
+  /** Save the report as one file.
+   *
+   * Anchor-download is blocked in some embedded and sandboxed frames, and it
+   * fails silently there — the user clicks and nothing happens, which is worse
+   * than an error. So the result is verified and a working alternative is
+   * offered rather than leaving them stuck.
+   */
+  function downloadReport() {
+    if (!state.report) return;
+    const { title, html } = standaloneDoc();
+    let url = null;
+    try {
+      const blob = new Blob([html], { type: "text/html" });
+      url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}.html`;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      note(`Saved ${title}.html — one file, opens anywhere, no internet needed.`, "info");
+    } catch (err) {
+      note("This browser or frame blocked the download. Use “Print / save as PDF” " +
+           "instead, or open the tool in its own tab and try again.", "warn");
+    } finally {
+      if (url) setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+  }
+
+  /** Print just the report. Works where downloads are blocked, and is how most
+   *  people actually want to hand this to a client anyway. */
+  function printReport() {
+    if (!state.report) return;
+    window.print();
   }
 
   // ---------- boot ---------------------------------------------------------
@@ -406,6 +440,7 @@
     ["pages", "revenue", "traffic"].forEach(wireDrop);
     el("build").addEventListener("click", buildReport);
     el("download").addEventListener("click", downloadReport);
+    el("print").addEventListener("click", printReport);
     el("year").textContent = new Date().getFullYear();
   });
 })();

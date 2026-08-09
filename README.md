@@ -1,7 +1,7 @@
 # Claude configuration — research, analytics, and social
 
 A working Claude setup: **29 skills**, **10 dependency-free tools**, a
-validation hook, and a **131-test adversarial QA suite**. No pip install, no
+validation hook, and a **133-test adversarial QA suite**. No pip install, no
 build step, no API keys.
 
 The skills cover three things that compound: thinking that resists being
@@ -23,7 +23,7 @@ Verify:
 
 ```bash
 python3 qa/validate.py    # config integrity
-python3 qa/selftest.py    # 131 adversarial tests
+python3 qa/selftest.py    # 133 adversarial tests
 ```
 
 ## The skills
@@ -151,10 +151,16 @@ a CSV export into a client-ready report. No install, no server, no network —
 files are read in the tab and never transmitted.
 
 ```bash
-python3 studio/build.py          # rebuild index.html from source
-node studio/parity.mjs           # prove the JS matches the Python tools
-node studio/browsertest.mjs      # drive it in a real browser
+python3 studio/build.py --artifact   # rebuild index.html, artifact.html, docs/
+python3 studio/build.py --check      # fail if any built copy is stale
+node studio/parity.mjs               # prove the JS matches the Python tools
+node studio/browsertest.mjs          # drive it in a real browser
 ```
+
+**Hosting.** `docs/index.html` is a byte-identical copy served by GitHub Pages.
+Enable it once — *Settings → Pages → Source: GitHub Actions* — and every push
+republishes at `https://<owner>.github.io/<repo>/`. The deploy workflow refuses
+to publish a stale build or one that could reach the network.
 
 The statistics are a second implementation of what lives in `tools/`, so
 **214 values are compared against the Python original** on every check. Two

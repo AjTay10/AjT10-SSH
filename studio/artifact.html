@@ -1,11 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Reportcraft — turn an analytics export into a client-ready report</title>
-<meta name="description" content="Drop a CSV export, get a report that says what the numbers rest on and what they cannot establish. Runs entirely in your browser; nothing is uploaded.">
-<style>/* Tool chrome. The report's own styling lives in report.css so a downloaded
+<title>Reportcraft — turn an analytics export into a client-ready report</title><style>/* Tool chrome. The report's own styling lives in report.css so a downloaded
  * report carries only what it needs and nothing of the app around it. */
 
 :root{
@@ -109,8 +102,7 @@ scroll-behavior:auto!important}}
   #report-wrap{margin:0;border-top:0;padding-top:0}
   body{background:#fff}
 }
-</style>
-<style id="report-style">/* Report styling. Kept separate from the app chrome so a downloaded report
+</style><style id="report-style">/* Report styling. Kept separate from the app chrome so a downloaded report
  * carries exactly this and nothing else — and so it renders identically inside
  * the tool and as a standalone file the client opens six months later. */
 
@@ -226,8 +218,6 @@ font-family:var(--r-mono);font-size:11.5px;color:var(--r-ink-3);line-height:1.8}
   .rep section{break-inside:avoid}
 }
 </style>
-</head>
-<body>
 <div class="wrap">
 
 <header class="masthead">
@@ -1370,5 +1360,3 @@ const Charts = (() => {
   });
 })();
 </script>
-</body>
-</html>

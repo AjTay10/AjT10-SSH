@@ -76,34 +76,86 @@ def build():
     return html
 
 
+def to_fragment(html):
+    """Strip the outer document so a host that supplies its own <head>/<body>
+    can wrap this. Published Artifacts do exactly that, and leaving a second
+    <html> element inside their body produces a page browsers silently repair
+    in inconsistent ways."""
+    # Index-based, not regex-matched. app.js builds a standalone document as a
+    # string, so the source legitimately contains "</body></html>" inside a
+    # template literal — a non-greedy /<body>(.*?)<\/body>/ matches THAT and
+    # truncates the fragment mid-script. Anchor on the last closing tag instead.
+    hs, he = html.find("<head"), html.find("</head>")
+    bs, be = html.find("<body"), html.rfind("</body>")
+    if min(hs, he, bs, be) < 0:
+        raise BuildError("cannot find <head>/<body> to unwrap")
+    head = html[html.index(">", hs) + 1:he]
+    body = html[html.index(">", bs) + 1:be]
+
+    # Keep <title> and the styles; drop the meta tags the host controls.
+    keep = "".join(re.findall(r"<title>.*?</title>", head, re.S))
+    keep += "".join(re.findall(r"<style[^>]*>.*?</style>", head, re.S))
+    frag = keep + body
+
+    # The truncation above was silent, so assert the shape rather than trust it.
+    if frag.count("<script>") != frag.count("</script>"):
+        raise BuildError(
+            f"fragment has {frag.count('<script>')} <script> tags but "
+            f"{frag.count('</script>')} closing tags — it was truncated")
+    return frag
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="studio/build",
                                  description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true",
-                    help="verify index.html matches the sources")
+                    help="verify the built files match the sources")
+    ap.add_argument("--artifact", action="store_true",
+                    help="also write artifact.html (no outer document tags)")
     a = ap.parse_args(argv)
 
     out = os.path.join(HERE, "index.html")
+    frag_out = os.path.join(HERE, "artifact.html")
+    # GitHub Pages serves /docs from the branch. Keeping a byte-identical copy
+    # there means the hosted URL cannot drift from the source, and --check
+    # enforces it rather than trusting anyone to remember.
+    pages_out = os.path.join(os.path.dirname(HERE), "docs", "index.html")
     try:
         html = build()
+        frag = to_fragment(html)
         if a.check:
-            if not os.path.isfile(out):
-                raise BuildError("studio/index.html is missing — run "
-                                 "python3 studio/build.py")
-            if open(out, encoding="utf-8").read() != html:
-                raise BuildError(
-                    "studio/index.html is stale — it no longer matches its "
-                    "sources. Run: python3 studio/build.py")
-            print("studio/index.html matches its sources")
+            for path, want, hint in ((out, html, "index.html"),
+                                     (frag_out, frag, "artifact.html"),
+                                     (pages_out, html, "../docs/index.html")):
+                if not os.path.isfile(path):
+                    raise BuildError(f"studio/{hint} is missing — run "
+                                     f"python3 studio/build.py --artifact")
+                if open(path, encoding="utf-8").read() != want:
+                    raise BuildError(
+                        f"studio/{hint} is stale — it no longer matches its "
+                        f"sources. Run: python3 studio/build.py --artifact")
+            print("studio/index.html and artifact.html match their sources")
             return 0
         with open(out, "w", encoding="utf-8") as fh:
             fh.write(html)
+        with open(frag_out, "w", encoding="utf-8") as fh:
+            fh.write(frag)
+        os.makedirs(os.path.dirname(pages_out), exist_ok=True)
+        with open(pages_out, "w", encoding="utf-8") as fh:
+            fh.write(html)
+        # Tell Pages not to run Jekyll — it would ignore files starting with _
+        # and there is nothing here for it to build.
+        open(os.path.join(os.path.dirname(pages_out), ".nojekyll"), "w").close()
     except (BuildError, OSError) as e:
         print(f"studio/build: {e}", file=sys.stderr)
         return 2
 
-    print(f"studio/index.html  ({os.path.getsize(out):,} bytes, "
+    print(f"studio/index.html     ({os.path.getsize(out):,} bytes, "
           f"{len(PARTS)} sources inlined)")
+    print(f"studio/artifact.html  ({os.path.getsize(frag_out):,} bytes, "
+          f"document tags removed for embedding)")
+    print(f"docs/index.html       ({os.path.getsize(pages_out):,} bytes, "
+          f"GitHub Pages copy)")
     return 0
 
 

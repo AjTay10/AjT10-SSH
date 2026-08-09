@@ -1,0 +1,73 @@
+name: pages
+
+# Publishes docs/ (a byte-identical copy of studio/index.html) to GitHub Pages.
+#
+# ONE MANUAL STEP is required before this can work, because enabling Pages is a
+# repository setting and cannot be done from a workflow:
+#
+#   Settings → Pages → Build and deployment → Source: GitHub Actions
+#
+# After that, every push to the branches below republishes the tool at
+#   https://<owner>.github.io/<repo>/
+#
+# If you would rather not use Actions at all, the alternative is:
+#   Settings → Pages → Source: Deploy from a branch → /docs
+# which serves the same file with no workflow involved.
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - claude/claude-ai-setup-optimization-v3qtmi
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a deploy midway; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse to publish a stale build
+        run: python3 studio/build.py --check
+
+      - name: Refuse to publish anything that reaches the network
+        run: |
+          python3 - <<'PY'
+          # The whole promise of this tool is that a client's data never leaves
+          # their machine. Publishing a build that could phone home would break
+          # that promise silently, so it fails the deploy instead.
+          html = open("docs/index.html", encoding="utf-8").read()
+          scan = html.replace('xmlns="http://www.w3.org/2000/svg"', "")
+          bad = [s for s in ("http://", "https://", "cdn.", "fetch(",
+                             "XMLHttpRequest", "WebSocket", "@import",
+                             "<link", "sendBeacon") if s in scan]
+          if bad:
+              raise SystemExit(f"docs/index.html reaches the network: {bad}")
+          print(f"docs/index.html is self-contained ({len(html):,} bytes)")
+          PY
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
