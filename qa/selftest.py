@@ -29,6 +29,7 @@ import tempfile
 import traceback
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOLS_DIR = os.path.join(ROOT, "tools")
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 import chartkit          # noqa: E402
@@ -1598,6 +1599,25 @@ def t_studio_has_no_paywall():
             assert word not in low, f"studio/{fn} still mentions {word!r}"
 
 
+def t_parity_fixture_is_interpreter_stable():
+    """The frozen fixture must not carry more precision than it can reproduce.
+
+    Regression for a CI failure that was not a bug in any tool: CPython 3.12
+    switched sum() over floats to Neumaier compensated summation, so hhi came
+    out one ULP from the 3.11 value and the byte-comparison in
+    t_studio_parity_fixture_is_current failed on half the matrix. Rounding at
+    write time fixes it; this asserts the rounding actually happened, so a
+    future edit that drops quantize() is caught here rather than on whichever
+    Python version CI happens to add next.
+    """
+    sys.path.insert(0, os.path.join(ROOT, "studio"))
+    import parity_expected                                     # noqa: E402
+    raw = json.load(open(os.path.join(ROOT, "studio", "parity_expected.json"),
+                         encoding="utf-8"))
+    assert parity_expected.quantize(raw) == raw, \
+        "parity_expected.json holds unrounded floats — quantize() was skipped"
+
+
 def t_studio_parity_fixture_is_current():
     """parity_expected.json must reflect what tools/ computes right now."""
     expected = os.path.join(ROOT, "studio", "parity_expected.json")
@@ -1608,6 +1628,75 @@ def t_studio_parity_fixture_is_current():
     after = open(expected, encoding="utf-8").read()
     assert before == after, \
         "parity_expected.json is stale — tools/ changed. Re-run parity.mjs too."
+
+
+# ==========================================================================
+# the stdlib-only guarantee
+# ==========================================================================
+
+def _no_deps():
+    sys.path.insert(0, os.path.join(ROOT, "qa"))
+    import no_deps                                             # noqa: E402
+    return no_deps
+
+
+def t_no_deps_passes_this_repo():
+    res = _no_deps().scan()
+    assert not res["offenders"], res["offenders"]
+    assert res["files"] >= 11, f"only scanned {res['files']} files"
+
+
+def t_no_deps_locals_are_derived_not_listed():
+    """Every tool must be recognised as a sibling automatically.
+
+    The old check carried a hardcoded allowlist of local module names and
+    `usage` was never added to it. Deriving the set from the directory is what
+    stops that from recurring, so assert it is actually derived."""
+    local = _no_deps().local_modules()
+    for expected in ("csvio", "usage", "concentration", "chartkit"):
+        assert expected in local, f"{expected} not seen as a local module"
+
+
+def t_no_deps_catches_a_dependency():
+    nd = _no_deps()
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "fine.py"), "w", encoding="utf-8") as fh:
+            fh.write("import os, json\nfrom datetime import date\n")
+        with open(os.path.join(d, "bad.py"), "w", encoding="utf-8") as fh:
+            fh.write("import requests\nfrom numpy import array\n")
+        res = nd.scan(d)
+        mods = sorted(o["module"] for o in res["offenders"])
+        assert mods == ["numpy", "requests"], mods
+        rc, out, err = run(["qa/no_deps.py", "--tools", d])
+        assert rc == 1, f"exit {rc}, expected 1"
+        assert "requests" in err
+
+
+def t_no_deps_survives_python_39():
+    """sys.stdlib_module_names does not exist before 3.10.
+
+    This is the actual bug: the check read it through getattr(..., ()) and so
+    on 3.9 — the floor version the CI matrix exists to protect — the stdlib set
+    was empty and `import os` was reported as a third-party dependency. The
+    gate failed on every commit and told us nothing. Simulated by deleting the
+    attribute, because the matrix cannot be run from inside one interpreter."""
+    prog = (
+        "import sys, os, json\n"
+        f"sys.path.insert(0, {os.path.join(ROOT, 'qa')!r})\n"
+        "import no_deps\n"
+        "del sys.stdlib_module_names\n"
+        "assert not hasattr(sys, 'stdlib_module_names')\n"
+        f"res = no_deps.scan({TOOLS_DIR!r})\n"
+        "assert not res['offenders'], res['offenders']\n"
+        "assert no_deps.classify('requests', set()) == 'third-party'\n"
+        "assert no_deps.classify('os', set()) == 'stdlib'\n"
+        "assert no_deps.classify('__future__', set()) == 'stdlib'\n"
+        "print('ok')\n"
+    )
+    p = subprocess.run([sys.executable, "-c", prog], cwd=ROOT,
+                       capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0, p.stderr.strip()
+    assert "ok" in p.stdout
 
 
 # ==========================================================================

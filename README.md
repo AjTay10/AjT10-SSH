@@ -1,7 +1,7 @@
 # Claude configuration — research, analytics, and social
 
 A working Claude setup: **28 skills**, **11 dependency-free tools**, a
-validation hook, and a **134-test adversarial QA suite**. No pip install, no
+validation hook, and a **139-test adversarial QA suite**. No pip install, no
 build step, no API keys.
 
 The skills cover three things that compound: thinking that resists being
@@ -23,7 +23,7 @@ Verify:
 
 ```bash
 python3 qa/validate.py    # config integrity
-python3 qa/selftest.py    # 134 adversarial tests
+python3 qa/selftest.py    # 139 adversarial tests
 ```
 
 ## The skills

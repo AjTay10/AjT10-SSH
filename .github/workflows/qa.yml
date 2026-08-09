@@ -27,37 +27,11 @@ jobs:
       - name: Adversarial tests
         run: python3 qa/selftest.py -v
 
+      # Lives in qa/ rather than inline here on purpose. As a heredoc it could
+      # not be run locally, and a version-specific bug in it went unnoticed
+      # through every commit; qa/selftest.py now covers it.
       - name: Tools have no third-party imports
-        run: |
-          python3 - <<'PY'
-          import ast, os, sys
-          # The whole point of tools/ is that it runs anywhere with no install
-          # step. This fails the build the moment someone adds a dependency.
-          stdlib = set(getattr(sys, "stdlib_module_names", ())) | {
-              "chartkit", "anomaly", "calendar_gen", "kg", "metrics",
-              "abtest", "social_ingest", "dashboard", "csvio",
-              "concentration",
-          }
-          bad = []
-          for fn in sorted(os.listdir("tools")):
-              if not fn.endswith(".py"):
-                  continue
-              tree = ast.parse(open(f"tools/{fn}", encoding="utf-8").read())
-              for node in ast.walk(tree):
-                  if isinstance(node, ast.Import):
-                      mods = [a.name.split(".")[0] for a in node.names]
-                  elif isinstance(node, ast.ImportFrom) and node.level == 0:
-                      mods = [(node.module or "").split(".")[0]]
-                  else:
-                      continue
-                  for m in mods:
-                      if m and m not in stdlib:
-                          bad.append(f"tools/{fn}: imports {m!r}")
-          if bad:
-              print("\n".join(bad))
-              raise SystemExit("tools/ must be stdlib-only")
-          print("tools/ is stdlib-only")
-          PY
+        run: python3 qa/no_deps.py
 
       - name: Demo report is not stale
         run: python3 demo/build.py --check

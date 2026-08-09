@@ -7,7 +7,7 @@ and a QA gate. It is meant to be used, not read.
 
 ```bash
 python3 qa/validate.py      # config integrity — must exit 0
-python3 qa/selftest.py      # 134 adversarial tests — must exit 0
+python3 qa/selftest.py      # 139 adversarial tests — must exit 0
 ```
 
 Both run in CI. A pull request that fails either does not merge.
@@ -23,7 +23,8 @@ Both run in CI. A pull request that fails either does not merge.
   settings.json             permissions, env, hooks
   data/                     graph.json, usage/ — the accumulated asset
 tools/                      stdlib-only Python; no install step, ever
-qa/                         validate.py (config) + selftest.py (tools)
+qa/                         validate.py (config), selftest.py (tools),
+                            no_deps.py (the stdlib-only guarantee)
 demo/                       worked example; report.html is a built artifact
 studio/                     Reportcraft — the single-file browser tool
 ```

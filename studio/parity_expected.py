@@ -32,6 +32,38 @@ import csvio            # noqa: E402
 
 FIXTURES = os.path.join(HERE, "fixtures")
 
+# Twelve significant digits. See quantize() for why this number and not full
+# float repr.
+SIG = 12
+
+
+def quantize(obj, sig=SIG):
+    """Round every float to `sig` significant digits before freezing.
+
+    CPython 3.12 switched sum() over floats to Neumaier compensated summation.
+    hhi is a sum of squared shares, so it lands one or two ULPs away from the
+    3.11 answer — 0.04860298025445417 against 0.04860298025445422. This file is
+    byte-compared to detect drift, which turned a harmless arithmetic
+    improvement into a hard CI failure on one row of the version matrix while
+    the tools themselves were fine.
+
+    Twelve significant digits is ~1e-12 relative error, three orders of
+    magnitude inside the 1e-9 tolerance parity.mjs compares against. That
+    erases interpreter-level noise and leaves a genuine algorithm change — which
+    moves digits far above 1e-12 — just as visible as before.
+    """
+    if isinstance(obj, bool):
+        return obj                      # bool is an int subclass; do not round
+    if isinstance(obj, float):
+        if obj != obj or obj in (float("inf"), float("-inf")):
+            return obj                  # NaN/inf have no significant digits
+        return float(f"{obj:.{sig}g}")
+    if isinstance(obj, dict):
+        return {k: quantize(v, sig) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [quantize(v, sig) for v in obj]
+    return obj
+
 
 def load_items(path, item_col, value_col, date_col=None):
     rows = csvio.read_rows(path, quiet=True)
@@ -124,7 +156,7 @@ def main():
 
     path = os.path.join(HERE, "parity_expected.json")
     with open(path, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, indent=2, sort_keys=True, default=float)
+        json.dump(quantize(out), fh, indent=2, sort_keys=True, default=float)
         fh.write("\n")
     print(f"{path}  ({os.path.getsize(path):,} bytes)")
     return 0
