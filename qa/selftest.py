@@ -1684,7 +1684,10 @@ def t_no_deps_survives_python_39():
         "import sys, os, json\n"
         f"sys.path.insert(0, {os.path.join(ROOT, 'qa')!r})\n"
         "import no_deps\n"
-        "del sys.stdlib_module_names\n"
+        # On 3.9 the attribute is genuinely absent, so deleting it raises
+        # AttributeError. Simulate only where there is something to simulate.
+        "if hasattr(sys, 'stdlib_module_names'):\n"
+        "    del sys.stdlib_module_names\n"
         "assert not hasattr(sys, 'stdlib_module_names')\n"
         f"res = no_deps.scan({TOOLS_DIR!r})\n"
         "assert not res['offenders'], res['offenders']\n"

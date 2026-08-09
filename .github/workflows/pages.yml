@@ -1,25 +1,20 @@
 name: pages
 
 # Publishes docs/ (a byte-identical copy of studio/index.html) to GitHub Pages.
+# Settings → Pages → Source is set to GitHub Actions, so every push to a branch
+# below republishes the tool at https://<owner>.github.io/<repo>/
 #
-# ONE MANUAL STEP is required before this can work, because enabling Pages is a
-# repository setting and cannot be done from a workflow:
-#
-#   Settings → Pages → Build and deployment → Source: GitHub Actions
-#
-# After that, every push to the branches below republishes the tool at
-#   https://<owner>.github.io/<repo>/
-#
-# If you would rather not use Actions at all, the alternative is:
-#   Settings → Pages → Source: Deploy from a branch → /docs
-# which serves the same file with no workflow involved.
+# Publishing branches only. The github-pages environment restricts deployment
+# to protected branches, so a feature branch reaches `deploy`, gets rejected by
+# the environment, and reports the whole run as failed while master publishes
+# fine seconds later. Listing only the branches allowed to deploy keeps a red X
+# from meaning nothing.
 
 on:
   push:
     branches:
       - master
       - main
-      - claude/claude-ai-setup-optimization-v3qtmi
   workflow_dispatch:
 
 permissions:
