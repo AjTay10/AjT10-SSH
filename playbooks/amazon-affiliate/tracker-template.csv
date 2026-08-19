@@ -1,0 +1,2 @@
+date,asin,product,category,commission_pct,price_at_review,rating,review_count,source,angle,channel,status,published_url,clicks,orders,commission_usd,notes
+2026-08-19,B0EXAMPLE1,Example widget pro,Home,3,49.99,4.5,1284,movers-shakers,solves cable clutter in 10s,onsite,candidate,,,,,example row — delete me. Blank = not reported; 0 = reported as none. status: candidate|rejected|filmed|published|earning|dead
