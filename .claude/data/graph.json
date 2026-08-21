@@ -34,6 +34,34 @@
       "rel": "competes_with",
       "to": "gta_online_guides",
       "weight": 1.0
+    },
+    {
+      "from": "tgg",
+      "note": "owns Thursday; Australia timing moat — route around, not through",
+      "rel": "uses",
+      "to": "weekly_update_format",
+      "weight": 1.0
+    },
+    {
+      "from": "broughy1322",
+      "note": "existence proof: 292k on tested-data rigor, racing only",
+      "rel": "uses",
+      "to": "gta_online_guides",
+      "weight": 1.0
+    },
+    {
+      "from": "gta_rav1sh",
+      "note": "weight-class model: mechanics explainers sustain small channels",
+      "rel": "uses",
+      "to": "gta_online_guides",
+      "weight": 1.0
+    },
+    {
+      "from": "taytested",
+      "note": "positioning: the Broughy-of-money slot, PC-specific lane",
+      "rel": "competes_with",
+      "to": "gta_online_guides",
+      "weight": 1.0
     }
   ],
   "nodes": {
@@ -54,6 +82,23 @@
       "name": "Battlefield 6 loadout guide format",
       "type": "topic"
     },
+    "broughy1322": {
+      "attrs": {
+        "platform": "youtube",
+        "positioning": "tested_racing_data",
+        "size": "292k"
+      },
+      "name": "Broughy1322",
+      "type": "brand"
+    },
+    "fresh_gaming": {
+      "attrs": {
+        "platform": "youtube",
+        "size": "443k"
+      },
+      "name": "Fresh Gaming",
+      "type": "brand"
+    },
     "gta6_launch": {
       "attrs": {
         "pc_version": "unannounced",
@@ -61,6 +106,14 @@
       },
       "name": "GTA VI launch Nov 19 2026",
       "type": "campaign"
+    },
+    "gta_gentleman": {
+      "attrs": {
+        "platform": "youtube",
+        "size": "206k"
+      },
+      "name": "GTA Gentleman",
+      "type": "brand"
     },
     "gta_online_guides": {
       "attrs": {
@@ -70,6 +123,39 @@
       "name": "GTA Online guide niche",
       "type": "topic"
     },
+    "gta_rav1sh": {
+      "attrs": {
+        "note": "weight_class_model",
+        "platform": "youtube",
+        "size": "26.8k"
+      },
+      "name": "Gta Rav1sh",
+      "type": "brand"
+    },
+    "itzfrolickz": {
+      "attrs": {
+        "platform": "youtube",
+        "size": "497k"
+      },
+      "name": "ItzFrolickz",
+      "type": "brand"
+    },
+    "laazrgaming": {
+      "attrs": {
+        "platform": "youtube",
+        "size": "605k"
+      },
+      "name": "LaazrGaming",
+      "type": "brand"
+    },
+    "light_skin_gaming": {
+      "attrs": {
+        "platform": "youtube",
+        "size": "226k"
+      },
+      "name": "Light Skin Gaming",
+      "type": "brand"
+    },
     "solo_money_format": {
       "attrs": {
         "gap": "honest_per_hour_math",
@@ -77,6 +163,32 @@
       },
       "name": "GTA solo money guide format",
       "type": "topic"
+    },
+    "taytested": {
+      "attrs": {
+        "checked": "2026-08-21",
+        "handle": "@TayTested",
+        "positioning": "tested_numbers_ranked_verdicts"
+      },
+      "name": "TayTested",
+      "type": "brand"
+    },
+    "tgg": {
+      "attrs": {
+        "platform": "youtube",
+        "posting": "weekly_updates_thu",
+        "size": "1M+"
+      },
+      "name": "TGG",
+      "type": "brand"
+    },
+    "tylarious": {
+      "attrs": {
+        "platform": "youtube",
+        "size": "462k"
+      },
+      "name": "Tylarious",
+      "type": "brand"
     },
     "weekly_update_format": {
       "attrs": {

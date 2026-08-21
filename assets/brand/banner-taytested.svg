@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440" font-family="Archivo Black, Arial Black, sans-serif">
+  <!-- TayTested channel banner — 2560x1440. ALL critical content sits inside
+       YouTube's universal safe area: 1546x423 centered (x 507–2053, y 508.5–931.5). -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0B0F14"/>
+      <stop offset="1" stop-color="#131A22"/>
+    </linearGradient>
+  </defs>
+  <rect width="2560" height="1440" fill="url(#sky)"/>
+  <!-- decorative test-grid, outside safe area it can crop freely -->
+  <g stroke="#1F2A36" stroke-width="2">
+    <path d="M0 360H2560M0 720H2560M0 1080H2560"/>
+    <path d="M640 0V1440M1280 0V1440M1920 0V1440"/>
+  </g>
+  <!-- big gauge arcs echoing the avatar, partially cropped by design -->
+  <circle cx="180" cy="720" r="430" fill="none" stroke="#1F2A36" stroke-width="34"/>
+  <circle cx="180" cy="720" r="430" fill="none" stroke="#2BD576" stroke-width="34"
+          stroke-linecap="round" stroke-dasharray="740 1962" transform="rotate(-40 180 720)"/>
+  <circle cx="2380" cy="720" r="430" fill="none" stroke="#1F2A36" stroke-width="34"/>
+  <circle cx="2380" cy="720" r="430" fill="none" stroke="#FF4757" stroke-width="34"
+          stroke-linecap="round" stroke-dasharray="420 2282" transform="rotate(150 2380 720)"/>
+  <!-- SAFE AREA CONTENT -->
+  <text x="1280" y="672" text-anchor="middle" font-size="150" font-weight="900" letter-spacing="4" fill="#F5F7FA">TAY<tspan fill="#2BD576">TESTED</tspan></text>
+  <text x="1280" y="762" text-anchor="middle" font-size="52" letter-spacing="2"
+        font-family="Inter, Arial, sans-serif" font-weight="600" fill="#93A4B8">Tested numbers. Ranked verdicts. No hype.</text>
+  <g font-family="Inter, Arial, sans-serif" font-weight="700" font-size="36">
+    <rect x="742" y="812" width="500" height="72" rx="36" fill="#1F2A36"/>
+    <text x="992" y="860" text-anchor="middle" fill="#F5F7FA">Guides Wed + Sat</text>
+    <rect x="1278" y="812" width="540" height="72" rx="36" fill="#2BD576"/>
+    <text x="1548" y="860" text-anchor="middle" fill="#0B0F14">Worth It This Week · Thu</text>
+  </g>
+</svg>
