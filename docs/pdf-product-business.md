@@ -99,7 +99,7 @@ prints clean in black-and-white or color. Listing copy ready to paste is in
 | 1 | The Budget Reset (built) | single-digit $ | done |
 | 2 | Niche variants: couples / freelancer irregular-income / college edition | single-digit $ | edit the script |
 | 3 | The full bundle: planner + all variants + wall-tracker pack | low-double-digit $ | packaging |
-| 4 | Companion spreadsheet (auto-calculating version) | low-double-digit $ | one build |
+| 4 | Interactive Edition (built): auto-calculating browser app, `interactive/The-Budget-Reset-Interactive.html` — sells alone or bundled as the premium tier | low-double-digit $ | done |
 
 *Price bands deliberately vague: set them by pricing against the top 10
 current listings for the same search terms on launch day, not against this

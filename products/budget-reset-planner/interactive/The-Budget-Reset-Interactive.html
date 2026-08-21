@@ -1,0 +1,827 @@
+<!-- The Budget Reset — Interactive Edition. Single file, no dependencies. -->
+<title>The Budget Reset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --paper:#FBF9F4; --sheet:#FFFFFF; --wash:#F3EFE6; --teal-wash:#E9F0EE;
+    --ink:#26241F; --soft:#7C7568; --faint:#A39B8B; --line:#DDD6C9; --line-soft:#EAE4D8;
+    --teal:#0E5E56; --teal-deep:#0A4740; --teal-bright:#12756B;
+    --rust:#A8371F; --rust-wash:#F7E8E3; --amber:#8A6410; --amber-wash:#F6EEDA;
+    --radius:10px;
+    --shade:repeating-linear-gradient(-45deg,var(--teal) 0 3px,var(--teal-bright) 3px 6px);
+    --font-display:"Fraunces",Georgia,"Times New Roman",serif;
+    --font-ui:"Public Sans",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:var(--font-ui); font-size:15px; line-height:1.5;
+    min-height:100vh;
+  }
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{
+    outline:2px solid var(--teal); outline-offset:2px; border-radius:4px;
+  }
+  input,select{font:inherit;color:var(--ink)}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* ---------- header ---------- */
+  header.top{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:18px 28px 14px; border-bottom:1px solid var(--line);
+    background:var(--paper); position:sticky; top:0; z-index:40;
+  }
+  .brandmark{flex:none}
+  .brand-name{font-family:var(--font-display); font-weight:700; font-size:21px; letter-spacing:.2px}
+  .brand-sub{font-size:11px; letter-spacing:.14em; color:var(--soft); text-transform:uppercase; margin-top:-2px}
+  .top-actions{margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .save-dot{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--soft); margin-right:6px}
+  .save-dot i{width:7px;height:7px;border-radius:50%;background:var(--teal-bright);display:inline-block;transition:opacity .4s}
+  .ghost-btn{
+    font-size:12.5px; font-weight:600; color:var(--teal-deep);
+    border:1px solid var(--line); border-radius:999px; padding:6px 14px; background:var(--sheet);
+  }
+  .ghost-btn:hover{border-color:var(--teal); background:var(--teal-wash)}
+
+  /* ---------- layout: tab rail + canvas ---------- */
+  .frame{display:flex; align-items:flex-start; max-width:1180px; margin:0 auto}
+  nav.rail{
+    flex:0 0 178px; position:sticky; top:76px;
+    padding:26px 0 26px 20px; display:flex; flex-direction:column; gap:4px;
+  }
+  .tab{
+    text-align:left; font-size:13.5px; font-weight:600; color:var(--soft);
+    padding:10px 16px 10px 14px; border-radius:8px 0 0 8px;
+    border:1px solid transparent; border-right:none; position:relative;
+  }
+  .tab .tag{display:block; font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--faint); text-transform:uppercase}
+  .tab:hover{color:var(--teal-deep); background:var(--teal-wash)}
+  .tab[aria-selected="true"]{
+    color:var(--teal-deep); background:var(--sheet);
+    border-color:var(--line); box-shadow:2px 0 0 var(--sheet);
+  }
+  .tab[aria-selected="true"]::before{
+    content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:2px; background:var(--teal);
+  }
+  main.canvas{
+    flex:1; min-width:0; background:var(--sheet);
+    border:1px solid var(--line); border-radius:14px; margin:24px 20px 60px 0;
+    padding:34px 38px 48px; box-shadow:0 1px 0 var(--line-soft), 0 14px 30px -24px rgba(38,36,31,.35);
+  }
+  @media(max-width:820px){
+    .frame{flex-direction:column}
+    nav.rail{position:static; flex-direction:row; overflow-x:auto; width:100%; padding:12px 16px 0; gap:6px}
+    .tab{border:1px solid transparent; border-radius:999px; padding:8px 14px; white-space:nowrap}
+    .tab[aria-selected="true"]{border-color:var(--line); box-shadow:none}
+    .tab[aria-selected="true"]::before{display:none}
+    .tab .tag{display:none}
+    main.canvas{margin:14px 12px 40px; padding:22px 18px 36px}
+  }
+
+  /* ---------- shared pieces ---------- */
+  .kicker{font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); margin-bottom:6px}
+  h1.sheet-title{font-family:var(--font-display); font-weight:600; font-size:30px; line-height:1.15; text-wrap:balance}
+  .sheet-note{color:var(--soft); font-size:13.5px; max-width:56ch; margin-top:6px}
+  .sheet-head{margin-bottom:26px}
+  .section-label{font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--teal-deep); margin:30px 0 10px}
+  .section-label small{color:var(--faint); font-weight:600; letter-spacing:.02em; text-transform:none; margin-left:8px}
+
+  .month-row{display:flex; gap:5px; flex-wrap:wrap; margin:4px 0 8px}
+  .month-pill{
+    font-size:12px; font-weight:600; color:var(--soft); padding:5px 11px;
+    border:1px solid var(--line); border-radius:999px; background:var(--sheet);
+  }
+  .month-pill:hover{border-color:var(--teal)}
+  .month-pill[aria-pressed="true"]{background:var(--teal); border-color:var(--teal); color:#fff}
+  .month-pill .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--teal-bright);margin-left:5px;vertical-align:2px}
+  .month-pill[aria-pressed="true"] .dot{background:#fff}
+
+  table.grid{width:100%; border-collapse:collapse}
+  .table-scroll{overflow-x:auto}
+  table.grid th{
+    font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);
+    text-align:left; padding:6px 10px; border-bottom:1.5px solid var(--line);
+  }
+  table.grid td{padding:5px 10px; border-bottom:1px solid var(--line-soft); vertical-align:middle}
+  table.grid td.r,table.grid th.r{text-align:right}
+  table.grid input[type=text]{width:100%; min-width:110px}
+  table.grid input{border:none; background:transparent; padding:5px 2px; border-radius:4px}
+  table.grid input:hover{background:var(--wash)}
+  input.amt{width:88px; text-align:right}
+  .row-x{color:var(--faint); font-size:15px; line-height:1; padding:4px 6px; border-radius:5px; visibility:hidden}
+  tr:hover .row-x{visibility:visible}
+  .row-x:hover{color:var(--rust); background:var(--rust-wash)}
+  .add-row{font-size:12.5px; font-weight:600; color:var(--teal); padding:8px 10px}
+  .add-row:hover{text-decoration:underline}
+  tfoot td{font-weight:700; border-top:1.5px solid var(--line); border-bottom:none; padding-top:8px}
+
+  .chip{display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap}
+  .chip.under{background:var(--teal-wash); color:var(--teal-deep)}
+  .chip.over{background:var(--rust-wash); color:var(--rust)}
+  .chip.zero{background:var(--wash); color:var(--soft)}
+
+  .paid-toggle{
+    font-size:11px; font-weight:700; letter-spacing:.06em; padding:4px 12px; border-radius:999px;
+    border:1.5px solid var(--line); color:var(--faint); background:var(--sheet);
+  }
+  .paid-toggle[aria-pressed="true"]{background:var(--teal); border-color:var(--teal); color:#fff}
+
+  /* summary band */
+  .band{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:0; margin-top:26px;
+    background:var(--teal-deep); border-radius:var(--radius); overflow:hidden;
+  }
+  .band .cell{padding:18px 20px; border-left:1px solid rgba(255,255,255,.14)}
+  .band .cell:first-child{border-left:none}
+  .band .lbl{font-size:10.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.65)}
+  .band .val{font-family:var(--font-display); font-size:26px; font-weight:600; color:#fff; margin-top:2px}
+  .band .val.neg{color:#F4B8A6}
+  @media(max-width:640px){.band{grid-template-columns:1fr}.band .cell{border-left:none;border-top:1px solid rgba(255,255,255,.14)}}
+
+  /* ---------- overview ---------- */
+  .hero{
+    background:linear-gradient(160deg,var(--teal-deep),var(--teal) 78%);
+    border-radius:14px; padding:30px 32px 26px; color:#fff; position:relative; overflow:hidden;
+  }
+  .hero svg.arcs{position:absolute; right:-30px; top:-46px; opacity:.16}
+  .hero .lbl{font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.7)}
+  .hero .big{font-family:var(--font-display); font-size:56px; font-weight:600; line-height:1.05; margin:4px 0 2px}
+  .hero .sub{font-size:13px; color:rgba(255,255,255,.75); max-width:46ch}
+  .hero .big.neg{color:#F8C9BA}
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-top:16px}
+  .tile{border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px 14px; background:var(--sheet)}
+  .tile .lbl{font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--faint)}
+  .tile .val{font-family:var(--font-display); font-size:26px; font-weight:600; margin-top:3px}
+  .tile .hint{font-size:11.5px; color:var(--soft); margin-top:2px}
+  .meter{height:7px; border-radius:4px; background:var(--wash); margin-top:10px; overflow:hidden}
+  .meter i{display:block; height:100%; border-radius:4px; background:var(--teal); transition:width .5s ease}
+  .meter i.shaded{background:var(--shade)}
+
+  /* ---------- shade blocks ---------- */
+  .blocks{display:flex; gap:4px; flex-wrap:wrap}
+  .blk{
+    width:26px; height:22px; border:1.5px solid var(--teal); border-radius:4px; background:var(--sheet);
+    transition:background .25s;
+  }
+  .blk.on{background:var(--shade); border-color:var(--teal-deep)}
+  .blk-cap{font-size:10px; color:var(--faint); text-align:center; margin-top:3px}
+
+  /* ---------- debts ---------- */
+  .debt-card{border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; position:relative}
+  .debt-card.focus{border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-wash)}
+  .debt-card.done{background:var(--teal-wash)}
+  .focus-flag{
+    position:absolute; top:-9px; left:14px; font-size:10px; font-weight:800; letter-spacing:.12em;
+    background:var(--teal); color:#fff; padding:2px 10px; border-radius:999px; text-transform:uppercase;
+  }
+  .debt-top{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+  .debt-name{font-weight:700; font-size:15.5px}
+  .debt-meta{font-size:12px; color:var(--soft)}
+  .debt-bal{margin-left:auto; font-family:var(--font-display); font-size:21px; font-weight:600}
+  .debt-bar{display:flex; gap:3px; margin-top:12px}
+  .debt-bar .seg{flex:1; height:18px; border:1.5px solid var(--teal); border-radius:4px; background:var(--sheet)}
+  .debt-bar .seg.on{background:var(--shade); border-color:var(--teal-deep)}
+  .debt-foot{display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap}
+  .pay-form{display:flex; gap:6px; align-items:center; margin-left:auto}
+  .pay-form input{width:92px; text-align:right; border:1px solid var(--line); border-radius:6px; padding:5px 8px; background:var(--sheet)}
+  .mini-btn{font-size:12px; font-weight:700; color:#fff; background:var(--teal); border-radius:6px; padding:6px 13px}
+  .mini-btn:hover{background:var(--teal-deep)}
+  .mini-btn.quiet{background:var(--sheet); color:var(--teal-deep); border:1px solid var(--line)}
+  .paid-stamp{
+    display:inline-block; font-family:var(--font-display); font-weight:700; font-size:15px; color:var(--teal-deep);
+    border:2.5px solid var(--teal-deep); border-radius:8px; padding:2px 12px; transform:rotate(-4deg); letter-spacing:.08em;
+  }
+
+  /* ---------- spending rollup ---------- */
+  .roll{margin:6px 0 14px}
+  .roll .roll-head{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px}
+  .roll .roll-head b{font-weight:600}
+  .roll .roll-head .spent-of{color:var(--soft)}
+  .roll .track{display:flex; height:12px; border-radius:6px; background:var(--wash); overflow:hidden}
+  .roll .track .fill{background:var(--teal)}
+  .roll .track .over{background:var(--rust)}
+  .over-note{font-size:11px; font-weight:700; color:var(--rust)}
+
+  .quick-add{
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    background:var(--wash); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin:8px 0 18px;
+  }
+  .quick-add input,.quick-add select{border:1px solid var(--line); border-radius:6px; padding:7px 10px; background:var(--sheet); font-size:13.5px}
+  .quick-add input.day{width:64px}
+  .quick-add input.desc{flex:1; min-width:150px}
+  .quick-add input.amt2{width:100px; text-align:right}
+
+  /* ---------- goals ---------- */
+  .goal-wrap{border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px}
+  .fund-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px}
+  .fund{border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px}
+  .fund input{border:none; background:transparent; border-radius:4px; padding:2px 4px}
+  .fund input:hover{background:var(--wash)}
+  .fund .fname{font-weight:700; width:100%}
+  .fund .frow{display:flex; gap:8px; font-size:12.5px; color:var(--soft); margin-top:6px; align-items:center}
+  .fund .frow input{width:76px; text-align:right; color:var(--ink)}
+
+  /* ---------- audit ---------- */
+  .seg-toggle{display:inline-flex; border:1.5px solid var(--line); border-radius:999px; overflow:hidden}
+  .seg-toggle button{font-size:11px; font-weight:700; padding:4px 12px; color:var(--faint)}
+  .seg-toggle button[aria-pressed="true"].keep{background:var(--teal); color:#fff}
+  .seg-toggle button[aria-pressed="true"].cut{background:var(--rust); color:#fff}
+  tr.cancelled td .strike{text-decoration:line-through; color:var(--faint)}
+  .found{
+    margin-top:22px; background:var(--teal-deep); color:#fff; border-radius:var(--radius);
+    padding:20px 24px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  }
+  .found .big{font-family:var(--font-display); font-size:38px; font-weight:600}
+  .found .lbl{font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.7)}
+
+  /* ---------- no-spend ---------- */
+  .stamps{display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:12px; margin-top:14px}
+  .stamp{display:flex; flex-direction:column; align-items:center; gap:5px}
+  .stamp .c{
+    width:46px; height:46px; border-radius:50%; border:2px solid var(--teal);
+    display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--teal);
+    background:var(--sheet); transition:transform .15s, background .25s; font-size:15px;
+  }
+  .stamp .c:hover{transform:scale(1.07)}
+  .stamp.on .c{background:var(--shade); color:#fff; border-color:var(--teal-deep); transform:rotate(-6deg)}
+  .stamp .d{font-size:9.5px; font-weight:700; letter-spacing:.08em; color:var(--faint); text-transform:uppercase}
+  .streak{font-size:13px; color:var(--soft); margin-top:14px}
+  .streak b{color:var(--teal-deep)}
+  .essentials{width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 12px; background:var(--sheet)}
+
+  .empty{color:var(--faint); font-size:13px; font-style:italic; padding:12px 2px}
+  .hint-bar{
+    background:var(--amber-wash); border:1px solid #E4D5AE; color:var(--amber);
+    border-radius:8px; font-size:12.5px; padding:9px 14px; margin-bottom:20px;
+    display:flex; gap:10px; align-items:center;
+  }
+  .hint-bar button{margin-left:auto; font-weight:700; color:var(--amber)}
+
+  footer.foot{max-width:1180px; margin:0 auto; padding:0 28px 40px; color:var(--faint); font-size:11.5px; letter-spacing:.04em}
+
+  #confetti{position:fixed; inset:0; pointer-events:none; z-index:90}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important; animation:none !important}
+  }
+  @media print{
+    header.top,nav.rail,.quick-add,.top-actions,.hint-bar,.row-x,.add-row,.pay-form,#confetti{display:none !important}
+    body{background:#fff}
+    main.canvas{border:none; box-shadow:none; margin:0; padding:0}
+    .hero{background:#fff; color:#000; border:1.5pt solid #000}
+    .hero .lbl,.hero .sub{color:#333}
+  }
+</style>
+
+<header class="top">
+  <span class="brandmark" aria-hidden="true">
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="14" r="3.4" fill="#0E5E56"/>
+      <path d="M11 20a9 9 0 0 0 18 0" stroke="#0E5E56" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M6 20a14 14 0 0 0 28 0" stroke="#0E5E56" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <path d="M1.5 20a18.5 18.5 0 0 0 37 0" stroke="#0E5E56" stroke-width="1" fill="none" stroke-linecap="round"/>
+    </svg>
+  </span>
+  <div>
+    <div class="brand-name">The Budget Reset</div>
+    <div class="brand-sub">Interactive Edition</div>
+  </div>
+  <div class="top-actions">
+    <span class="save-dot"><i id="saveDot"></i><span id="saveMsg">Saved in this browser</span></span>
+    <button class="ghost-btn" id="btnExport">Export backup</button>
+    <button class="ghost-btn" id="btnImport">Import</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <button class="ghost-btn" onclick="window.print()">Print</button>
+    <button class="ghost-btn" id="btnReset">Start over</button>
+  </div>
+</header>
+
+<div class="frame">
+  <nav class="rail" role="tablist" aria-label="Planner sections" id="rail"></nav>
+  <main class="canvas" id="panel"></main>
+</div>
+
+<footer class="foot">THE BUDGET RESET · YOUR NUMBERS NEVER LEAVE THIS BROWSER · EXPORT A BACKUP BEFORE CLEARING BROWSER DATA</footer>
+<canvas id="confetti" width="0" height="0"></canvas>
+
+<script>
+'use strict';
+/* ============================== state ============================== */
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const KEY='budget-reset-v1';
+
+const defaultMonth=()=>({
+  income:[{name:'Paycheck',expected:'',actual:''}],
+  fixed:[{name:'Rent / mortgage',amount:'',paid:false},{name:'Utilities',amount:'',paid:false},{name:'Insurance',amount:'',paid:false}],
+  variable:[{name:'Groceries',planned:''},{name:'Gas & transport',planned:''},{name:'Eating out',planned:''},{name:'Fun',planned:''}],
+  expenses:[]
+});
+const defaultState=()=>({
+  tab:'overview',
+  month:MONTHS[new Date().getMonth()],
+  months:{},
+  debts:[],
+  savings:{name:'',target:'',deposits:[]},
+  funds:[{name:'Car repairs',goal:'',monthly:'',saved:''},{name:'Holidays & gifts',goal:'',monthly:'',saved:''},{name:'Annual bills',goal:'',monthly:'',saved:''}],
+  subs:[],
+  nospend:{days:Array(30).fill(false),essentials:''},
+  hintDismissed:false
+});
+
+let S=defaultState();
+try{
+  const raw=localStorage.getItem(KEY);
+  if(raw){ const p=JSON.parse(raw); S=Object.assign(defaultState(),p);
+    S.nospend=Object.assign({days:Array(30).fill(false),essentials:''},p.nospend||{});
+    if(!Array.isArray(S.nospend.days)||S.nospend.days.length!==30) S.nospend.days=Array(30).fill(false);
+  }
+}catch(e){/* private mode or blocked storage — run in-memory */}
+
+let saveTimer=null;
+function save(){
+  try{ localStorage.setItem(KEY,JSON.stringify(S)); pulse('Saved just now'); }
+  catch(e){ pulse('Not saved — storage unavailable'); }
+}
+function pulse(msg){
+  const d=document.getElementById('saveDot'),m=document.getElementById('saveMsg');
+  if(m) m.textContent=msg;
+  if(d){ d.style.opacity='0'; requestAnimationFrame(()=>{ d.style.opacity='1'; }); }
+}
+function commit(){ clearTimeout(saveTimer); saveTimer=setTimeout(save,250); render(); }
+
+function month(){ if(!S.months[S.month]) S.months[S.month]=defaultMonth(); return S.months[S.month]; }
+const n=v=>{ const x=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:0; };
+const fmt=v=>'$'+(Math.round(v*100)/100).toLocaleString('en-US',{minimumFractionDigits:(v%1?2:0),maximumFractionDigits:2});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---- derived numbers ---- */
+function calc(mo){
+  const income=mo.income.reduce((a,r)=>a+n(r.expected),0);
+  const incomeActual=mo.income.reduce((a,r)=>a+n(r.actual),0);
+  const fixed=mo.fixed.reduce((a,r)=>a+n(r.amount),0);
+  const fixedPaid=mo.fixed.reduce((a,r)=>a+(r.paid?n(r.amount):0),0);
+  const planned=mo.variable.reduce((a,r)=>a+n(r.planned),0);
+  const spentBy={};
+  mo.expenses.forEach(e=>{ spentBy[e.cat]=(spentBy[e.cat]||0)+n(e.amt); });
+  const spent=mo.expenses.reduce((a,e)=>a+n(e.amt),0);
+  return {income,incomeActual,fixed,fixedPaid,planned,spent,spentBy,
+    leftToAssign:income-fixed-planned, safeToSpend:planned-spent, out:fixedPaid+spent};
+}
+function debtTotals(){
+  let start=0,now=0;
+  S.debts.forEach(d=>{ start+=n(d.start); now+=n(d.balance); });
+  return {start,now,paid:Math.max(0,start-now)};
+}
+function savingsTotal(){ return S.savings.deposits.reduce((a,d)=>a+n(d.amt),0); }
+function foundMoney(){ return S.subs.reduce((a,s)=>a+(s.decision==='cancel'?n(s.cost)*12:0),0); }
+
+/* ============================== rendering ============================== */
+const TABS=[
+  ['overview','Overview','the pulse'],
+  ['budget','Budget','plan the month'],
+  ['spending','Spending','log & track'],
+  ['debts','Debts','the snowball'],
+  ['goals','Goals','savings & funds'],
+  ['audit','Audit','leaks & challenge'],
+];
+
+function render(){
+  const rail=document.getElementById('rail');
+  rail.innerHTML=TABS.map(([id,label,tag])=>
+    `<button class="tab" role="tab" id="tab-${id}" aria-selected="${S.tab===id}" aria-controls="panel" data-go="${id}">
+      <span class="tag">${tag}</span>${label}</button>`).join('');
+  const p=document.getElementById('panel');
+  p.setAttribute('role','tabpanel');
+  p.setAttribute('aria-labelledby','tab-'+S.tab);
+  p.innerHTML=({overview,budget,spending,debts,goals,audit})[S.tab]();
+}
+
+const monthPills=()=>`<div class="month-row" role="group" aria-label="Choose month">`+
+  MONTHS.map(m=>{
+    const has=S.months[m]&&(S.months[m].expenses.length||S.months[m].income.some(r=>r.expected!==''));
+    return `<button class="month-pill" aria-pressed="${S.month===m}" data-month="${m}">${m.slice(0,3)}${has?'<span class="dot"></span>':''}</button>`;
+  }).join('')+`</div>`;
+
+const hintBar=()=> S.hintDismissed?'' :
+  `<div class="hint-bar"><span>Everything autosaves to <b>this browser only</b> — nothing is uploaded. Export a backup anytime from the top bar.</span>
+   <button data-act="dismissHint" aria-label="Dismiss">✕ Got it</button></div>`;
+
+/* ---------- overview ---------- */
+function overview(){
+  const c=calc(month()), dt=debtTotals(), sv=savingsTotal(), target=n(S.savings.target);
+  const debtPct=dt.start>0?Math.min(100,dt.paid/dt.start*100):0;
+  const savePct=target>0?Math.min(100,sv/target*100):0;
+  const left=c.leftToAssign;
+  return `${hintBar()}
+  <div class="sheet-head"><div class="kicker">${S.month} at a glance</div>
+    <h1 class="sheet-title">Where you stand</h1></div>
+  ${monthPills()}
+  <div class="hero">
+    <svg class="arcs" width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
+      <circle cx="110" cy="80" r="12" fill="#fff"/>
+      <path d="M60 110a50 50 0 0 0 100 0" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M30 110a80 80 0 0 0 160 0" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="lbl">Left to assign — ${S.month}</div>
+    <div class="big num ${left<0?'neg':''}">${fmt(left)}</div>
+    <div class="sub">${
+      left>0?'Unassigned money finds its own way out. Give every dollar a job on the Budget sheet — extra debt payment and savings count as jobs.':
+      left<0?'You have planned more than you expect to earn. Trim the plan on the Budget sheet until this reads zero.':
+      c.income>0?'Every dollar has a job. That is a zero-based budget — nicely done.':'Start on the Budget sheet: enter expected income, then give every dollar a job.'}</div>
+  </div>
+  <div class="tiles">
+    <div class="tile"><div class="lbl">Spent so far</div><div class="val num">${fmt(c.spent)}</div>
+      <div class="hint num">of ${fmt(c.planned)} planned variable</div>
+      <div class="meter"><i style="width:${c.planned>0?Math.min(100,c.spent/c.planned*100):0}%${c.spent>c.planned?';background:var(--rust)':''}"></i></div></div>
+    <div class="tile"><div class="lbl">Safe to spend</div><div class="val num ${c.safeToSpend<0?'':''}" style="${c.safeToSpend<0?'color:var(--rust)':''}">${fmt(c.safeToSpend)}</div>
+      <div class="hint">${c.safeToSpend<0?'▲ over plan — log stops the bleed':'left in variable categories'}</div></div>
+    <div class="tile"><div class="lbl">Bills paid</div><div class="val num">${month().fixed.filter(f=>f.paid).length}<span style="font-size:16px;color:var(--faint)"> / ${month().fixed.length}</span></div>
+      <div class="hint num">${fmt(c.fixedPaid)} of ${fmt(c.fixed)}</div>
+      <div class="meter"><i style="width:${c.fixed>0?c.fixedPaid/c.fixed*100:0}%"></i></div></div>
+    <div class="tile"><div class="lbl">Debt destroyed</div><div class="val num">${Math.round(debtPct)}%</div>
+      <div class="hint num">${fmt(dt.paid)} of ${fmt(dt.start)} gone</div>
+      <div class="meter"><i class="shaded" style="width:${debtPct}%"></i></div></div>
+    <div class="tile"><div class="lbl">${esc(S.savings.name)||'Savings goal'}</div><div class="val num">${Math.round(savePct)}%</div>
+      <div class="hint num">${fmt(sv)}${target?' of '+fmt(target):' saved'}</div>
+      <div class="meter"><i class="shaded" style="width:${savePct}%"></i></div></div>
+  </div>
+  <div class="section-label">The monthly ritual <small>four moves, in order</small></div>
+  <ol style="max-width:60ch; padding-left:20px; color:var(--soft); font-size:13.5px; display:grid; gap:6px">
+    <li><b style="color:var(--ink)">Budget</b> — set income and give every dollar a job until "left to assign" reads zero.</li>
+    <li><b style="color:var(--ink)">Log</b> — every purchase gets a line on the Spending sheet, same day it happens.</li>
+    <li><b style="color:var(--ink)">Attack</b> — throw everything spare at the focus debt on the Debts sheet.</li>
+    <li><b style="color:var(--ink)">Reset</b> — blew it? Pick next month above and start clean. Consistency beats perfection.</li>
+  </ol>`;
+}
+
+/* ---------- budget ---------- */
+function budget(){
+  const mo=month(), c=calc(mo);
+  const inc=mo.income.map((r,i)=>`<tr>
+      <td><input type="text" value="${esc(r.name)}" data-edit="income.${i}.name" aria-label="Income source"></td>
+      <td class="r"><input class="amt num" inputmode="decimal" value="${esc(r.expected)}" placeholder="0" data-edit="income.${i}.expected" aria-label="Expected"></td>
+      <td class="r"><input class="amt num" inputmode="decimal" value="${esc(r.actual)}" placeholder="0" data-edit="income.${i}.actual" aria-label="Actual"></td>
+      <td><button class="row-x" data-del="income.${i}" aria-label="Remove row">✕</button></td></tr>`).join('');
+  const fix=mo.fixed.map((r,i)=>`<tr>
+      <td><input type="text" value="${esc(r.name)}" data-edit="fixed.${i}.name" aria-label="Fixed expense"></td>
+      <td class="r"><input class="amt num" inputmode="decimal" value="${esc(r.amount)}" placeholder="0" data-edit="fixed.${i}.amount" aria-label="Amount"></td>
+      <td class="r"><button class="paid-toggle" aria-pressed="${!!r.paid}" data-paid="${i}">${r.paid?'✓ Paid':'Mark paid'}</button></td>
+      <td><button class="row-x" data-del="fixed.${i}" aria-label="Remove row">✕</button></td></tr>`).join('');
+  const vari=mo.variable.map((r,i)=>{
+    const spent=c.spentBy[r.name]||0, plan=n(r.planned), diff=plan-spent;
+    const chip=plan===0&&spent===0?`<span class="chip zero">—</span>`
+      :diff<0?`<span class="chip over">▲ ${fmt(-diff)} over</span>`
+      :`<span class="chip under">${fmt(diff)} left</span>`;
+    return `<tr>
+      <td><input type="text" value="${esc(r.name)}" data-edit="variable.${i}.name" aria-label="Category"></td>
+      <td class="r"><input class="amt num" inputmode="decimal" value="${esc(r.planned)}" placeholder="0" data-edit="variable.${i}.planned" aria-label="Planned"></td>
+      <td class="r num" style="color:var(--soft)">${fmt(spent)}</td>
+      <td class="r">${chip}</td>
+      <td><button class="row-x" data-del="variable.${i}" aria-label="Remove row">✕</button></td></tr>`;
+  }).join('');
+  return `<div class="sheet-head"><div class="kicker">Sheet 01 · print one per month? Never again</div>
+    <h1 class="sheet-title">The ${S.month} budget</h1>
+    <p class="sheet-note">Give every expected dollar a job. Spending you log on the next sheet fills in the "spent" column here by itself.</p></div>
+  ${monthPills()}
+  <div class="section-label">Income</div>
+  <div class="table-scroll"><table class="grid"><thead><tr><th>Source</th><th class="r">Expected</th><th class="r">Actual</th><th></th></tr></thead>
+  <tbody>${inc}</tbody>
+  <tfoot><tr><td>Total expected</td><td class="r num">${fmt(c.income)}</td><td class="r num" style="color:var(--soft)">${fmt(c.incomeActual)}</td><td></td></tr></tfoot></table></div>
+  <button class="add-row" data-add="income">+ Add income source</button>
+  <div class="section-label">Fixed bills <small>tap when paid — this is your bill tracker too</small></div>
+  <div class="table-scroll"><table class="grid"><thead><tr><th>Bill</th><th class="r">Amount</th><th class="r">Status</th><th></th></tr></thead>
+  <tbody>${fix}</tbody>
+  <tfoot><tr><td>Total fixed</td><td class="r num">${fmt(c.fixed)}</td><td class="r num" style="color:var(--soft)">${fmt(c.fixedPaid)} paid</td><td></td></tr></tfoot></table></div>
+  <button class="add-row" data-add="fixed">+ Add bill</button>
+  <div class="section-label">Variable spending <small>"spent" fills itself from your log</small></div>
+  <div class="table-scroll"><table class="grid"><thead><tr><th>Category</th><th class="r">Planned</th><th class="r">Spent</th><th class="r">Standing</th><th></th></tr></thead>
+  <tbody>${vari}</tbody>
+  <tfoot><tr><td>Total variable</td><td class="r num">${fmt(c.planned)}</td><td class="r num" style="color:var(--soft)">${fmt(c.spent)}</td><td></td><td></td></tr></tfoot></table></div>
+  <button class="add-row" data-add="variable">+ Add category</button>
+  <div class="band">
+    <div class="cell"><div class="lbl">Total in (expected)</div><div class="val num">${fmt(c.income)}</div></div>
+    <div class="cell"><div class="lbl">Total planned out</div><div class="val num">${fmt(c.fixed+c.planned)}</div></div>
+    <div class="cell"><div class="lbl">Left to assign</div><div class="val num ${c.leftToAssign<0?'neg':''}">${fmt(c.leftToAssign)}</div></div>
+  </div>`;
+}
+
+/* ---------- spending ---------- */
+function spending(){
+  const mo=month(), c=calc(mo);
+  const cats=mo.variable.map(v=>v.name).filter(Boolean);
+  const rolls=mo.variable.map(v=>{
+    const plan=n(v.planned), spent=c.spentBy[v.name]||0;
+    if(plan===0&&spent===0) return '';
+    const base=Math.max(plan,spent,1);
+    const fillPct=Math.min(spent,plan)/base*100, overPct=Math.max(0,spent-plan)/base*100;
+    return `<div class="roll">
+      <div class="roll-head"><b>${esc(v.name)}</b>
+        <span class="spent-of num">${fmt(spent)} of ${fmt(plan)}${spent>plan?` · <span class="over-note">▲ over</span>`:''}</span></div>
+      <div class="track" role="img" aria-label="${esc(v.name)}: spent ${fmt(spent)} of ${fmt(plan)} planned">
+        <span class="fill" style="width:${fillPct}%"></span><span class="over" style="width:${overPct}%"></span></div>
+    </div>`;
+  }).join('');
+  const rows=mo.expenses.map((e,i)=>`<tr>
+      <td class="num" style="color:var(--soft)">${esc(e.day)}</td>
+      <td>${esc(e.desc)}</td>
+      <td><span class="chip zero">${esc(e.cat)}</span></td>
+      <td class="r num">${fmt(n(e.amt))}</td>
+      <td><button class="row-x" data-delx="${i}" aria-label="Remove entry">✕</button></td></tr>`).reverse().join('');
+  return `<div class="sheet-head"><div class="kicker">Sheet 02 · the honesty engine</div>
+    <h1 class="sheet-title">${S.month} spending</h1>
+    <p class="sheet-note">Ten seconds per purchase. Every line updates the budget instantly — this page is the difference between a budget and a guess.</p></div>
+  ${monthPills()}
+  <form class="quick-add" id="expForm" aria-label="Log a purchase">
+    <input class="day num" name="day" inputmode="numeric" placeholder="Day" aria-label="Day of month" maxlength="2">
+    <input class="desc" name="desc" placeholder="What was it?" aria-label="Description" required>
+    <select name="cat" aria-label="Category">${cats.map(cName=>`<option>${esc(cName)}</option>`).join('')||'<option>Other</option>'}</select>
+    <input class="amt2 num" name="amt" inputmode="decimal" placeholder="$0.00" aria-label="Amount" required>
+    <button class="mini-btn" type="submit">Log it</button>
+  </form>
+  ${rolls?`<div class="section-label">Category standing</div>${rolls}`:''}
+  <div class="section-label">The log <small>${mo.expenses.length} entr${mo.expenses.length===1?'y':'ies'} · ${fmt(c.spent)} total</small></div>
+  ${mo.expenses.length?`<div class="table-scroll"><table class="grid">
+    <thead><tr><th>Day</th><th>What</th><th>Category</th><th class="r">Amount</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`
+    :`<p class="empty">Nothing logged yet this month. The first entry takes ten seconds — that's the whole habit.</p>`}`;
+}
+
+/* ---------- debts ---------- */
+function debts(){
+  const dt=debtTotals();
+  const order=S.debts.map((d,i)=>({d,i})).sort((a,b)=>{
+    const az=n(a.d.balance)<=0, bz=n(b.d.balance)<=0;
+    if(az!==bz) return az?1:-1;
+    return n(a.d.balance)-n(b.d.balance);
+  });
+  let focusSet=false;
+  const cards=order.map(({d,i},rank)=>{
+    const bal=n(d.balance), start=Math.max(n(d.start),bal);
+    const paidPct=start>0?Math.max(0,Math.min(1,(start-bal)/start)):0;
+    const segs=Array.from({length:10},(_,s)=>`<span class="seg ${s<Math.round(paidPct*10)?'on':''}"></span>`).join('');
+    const done=bal<=0&&start>0;
+    const isFocus=!done&&!focusSet&&(focusSet=true);
+    return `<div class="debt-card ${isFocus?'focus':''} ${done?'done':''}">
+      ${isFocus?'<span class="focus-flag">Attack this one</span>':''}
+      <div class="debt-top">
+        <span class="debt-name">${rank+1}. ${esc(d.name)}</span>
+        <span class="debt-meta num">${d.apr?esc(d.apr)+'% APR · ':''}min ${fmt(n(d.min))}/mo · started at ${fmt(start)}</span>
+        <span class="debt-bal num">${done?'':fmt(bal)}</span>
+        ${done?'<span class="paid-stamp">PAID ✓</span>':''}
+      </div>
+      <div class="debt-bar" role="img" aria-label="${esc(d.name)}: ${Math.round(paidPct*100)}% paid off">${segs}</div>
+      <div class="debt-foot">
+        <span style="font-size:12px;color:var(--soft)" class="num">${Math.round(paidPct*100)}% destroyed · ${fmt(start-bal)} paid</span>
+        ${done?`<button class="mini-btn quiet" data-deldebt="${i}" style="margin-left:auto">Remove</button>`:
+        `<form class="pay-form" data-payform="${i}" aria-label="Log a payment to ${esc(d.name)}">
+          <input inputmode="decimal" class="num" placeholder="$ payment" aria-label="Payment amount" required>
+          <button class="mini-btn" type="submit">Log payment</button>
+        </form>
+        <button class="mini-btn quiet" data-deldebt="${i}" aria-label="Remove ${esc(d.name)}">✕</button>`}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="sheet-head"><div class="kicker">Sheet 03 · smallest first, always</div>
+    <h1 class="sheet-title">The snowball</h1>
+    <p class="sheet-note">List every debt — yes, that one too. They sort themselves smallest-first. Pay minimums on everything, then aim every spare dollar at the flagged one. Log payments and watch the bar shade in.</p></div>
+  <div class="tiles" style="margin-bottom:22px">
+    <div class="tile"><div class="lbl">Still owed</div><div class="val num">${fmt(dt.now)}</div></div>
+    <div class="tile"><div class="lbl">Destroyed so far</div><div class="val num" style="color:var(--teal-deep)">${fmt(dt.paid)}</div>
+      <div class="meter"><i class="shaded" style="width:${dt.start>0?dt.paid/dt.start*100:0}%"></i></div></div>
+    <div class="tile"><div class="lbl">Minimums / month</div><div class="val num">${fmt(S.debts.reduce((a,d)=>a+(n(d.balance)>0?n(d.min):0),0))}</div></div>
+  </div>
+  ${cards||'<p class="empty">No debts listed. Either you are debt-free — congratulations — or the honest list still needs writing.</p>'}
+  <div class="section-label">Add a debt</div>
+  <form class="quick-add" id="debtForm" aria-label="Add a debt">
+    <input class="desc" name="name" placeholder="Owed to (card, loan, person…)" required>
+    <input class="amt2 num" name="balance" inputmode="decimal" placeholder="Balance $" required>
+    <input class="amt2 num" name="apr" inputmode="decimal" placeholder="APR %">
+    <input class="amt2 num" name="min" inputmode="decimal" placeholder="Min $/mo">
+    <button class="mini-btn" type="submit">Add debt</button>
+  </form>`;
+}
+
+/* ---------- goals ---------- */
+function goals(){
+  const sv=savingsTotal(), target=n(S.savings.target);
+  const pct=target>0?Math.min(1,sv/target):0;
+  const blocks=Array.from({length:20},(_,i)=>{
+    const on=i<Math.floor(pct*20+1e-9);
+    const cap=(i+1)%5===0?`<div class="blk-cap num">${(i+1)*5}%</div>`:'<div class="blk-cap"></div>';
+    return `<div><div class="blk ${on?'on':''}"></div>${cap}</div>`;
+  }).join('');
+  const deps=S.savings.deposits.map((d,i)=>`<tr>
+    <td>${esc(d.label)||'<span style="color:var(--faint)">deposit</span>'}</td>
+    <td class="r num">${fmt(n(d.amt))}</td>
+    <td><button class="row-x" data-deldep="${i}" aria-label="Remove deposit">✕</button></td></tr>`).reverse().join('');
+  const funds=S.funds.map((f,i)=>{
+    const g=n(f.goal), s=n(f.saved), fp=g>0?Math.min(100,s/g*100):0;
+    return `<div class="fund">
+      <input class="fname" type="text" value="${esc(f.name)}" placeholder="Fund name" data-fund="${i}.name" aria-label="Fund name">
+      <div class="frow"><label>Goal $<input inputmode="decimal" class="num" value="${esc(f.goal)}" data-fund="${i}.goal" aria-label="Goal"></label>
+        <label>/mo $<input inputmode="decimal" class="num" value="${esc(f.monthly)}" data-fund="${i}.monthly" aria-label="Monthly set-aside"></label></div>
+      <div class="frow"><label>Saved $<input inputmode="decimal" class="num" value="${esc(f.saved)}" data-fund="${i}.saved" aria-label="Saved so far"></label>
+        <span style="margin-left:auto" class="num">${Math.round(fp)}%</span>
+        <button class="row-x" style="visibility:visible" data-delfund="${i}" aria-label="Remove fund">✕</button></div>
+      <div class="meter"><i class="shaded" style="width:${fp}%"></i></div>
+    </div>`;
+  }).join('');
+  return `<div class="sheet-head"><div class="kicker">Sheet 04 · pay yourself too</div>
+    <h1 class="sheet-title">Savings & sinking funds</h1>
+    <p class="sheet-note">One big goal you shade in five percent at a time — and sinking funds so Christmas and the car can never ambush your budget again.</p></div>
+  <div class="goal-wrap">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline">
+      <label style="flex:1;min-width:200px">I am saving for
+        <input type="text" value="${esc(S.savings.name)}" placeholder="Emergency fund, trip, deposit…" data-sav="name"
+          style="width:100%;border:none;border-bottom:1.5px solid var(--line);background:transparent;padding:4px 2px;font-weight:700;font-size:16px"></label>
+      <label>Target $
+        <input inputmode="decimal" class="num" value="${esc(S.savings.target)}" placeholder="0" data-sav="target"
+          style="width:110px;border:none;border-bottom:1.5px solid var(--line);background:transparent;padding:4px 2px;text-align:right;font-weight:700;font-size:16px"></label>
+    </div>
+    <div class="section-label">Shade one block per 5% <small class="num">${fmt(sv)}${target?' of '+fmt(target):''} · ${Math.round(pct*100)}%</small></div>
+    <div class="blocks" role="img" aria-label="Savings progress: ${Math.round(pct*100)} percent">${blocks}</div>
+    <div class="section-label">Deposits</div>
+    <form class="quick-add" id="depForm" aria-label="Log a deposit" style="margin-bottom:10px">
+      <input class="desc" name="label" placeholder="Where it came from (optional)">
+      <input class="amt2 num" name="amt" inputmode="decimal" placeholder="$0.00" required>
+      <button class="mini-btn" type="submit">Log deposit</button>
+    </form>
+    ${S.savings.deposits.length?`<div class="table-scroll"><table class="grid"><tbody>${deps}</tbody></table></div>`:''}
+  </div>
+  <div class="section-label">Sinking funds <small>expected surprises, funded early</small></div>
+  <div class="fund-grid">${funds}</div>
+  <button class="add-row" data-add="fund">+ Add a fund</button>`;
+}
+
+/* ---------- audit ---------- */
+function audit(){
+  const rows=S.subs.map((s,i)=>{
+    const cancelled=s.decision==='cancel';
+    return `<tr class="${cancelled?'cancelled':''}">
+      <td><span class="strike">${esc(s.name)}</span></td>
+      <td class="r num"><span class="strike">${fmt(n(s.cost))}</span></td>
+      <td class="r num"><span class="strike">${fmt(n(s.cost)*12)}</span></td>
+      <td class="r"><span class="seg-toggle">
+        <button class="keep" aria-pressed="${s.decision==='keep'}" data-dec="${i}.keep">Keep</button>
+        <button class="cut" aria-pressed="${cancelled}" data-dec="${i}.cancel">Cancel ✂</button></span></td>
+      <td><button class="row-x" data-delsub="${i}" aria-label="Remove">✕</button></td></tr>`;
+  }).join('');
+  const found=foundMoney();
+  const days=S.nospend.days, doneCount=days.filter(Boolean).length;
+  let streak=0,best=0,run=0;
+  days.forEach(d=>{ run=d?run+1:0; best=Math.max(best,run); });
+  for(let i=days.length-1;i>=0;i--){ if(days[i])streak++; else if(streak)break; else break; }
+  const stamps=days.map((on,i)=>`<div class="stamp ${on?'on':''}">
+      <button class="c" data-stamp="${i}" aria-pressed="${on}" aria-label="Day ${i+1} ${on?'clean':'not marked'}">${on?'✓':i+1}</button>
+      <span class="d">Day ${i+1}</span></div>`).join('');
+  return `<div class="sheet-head"><div class="kicker">Sheet 05 · find the leaks</div>
+    <h1 class="sheet-title">The audit</h1>
+    <p class="sheet-note">Open your last two bank statements, list every recurring charge, and rule on each one. Then take the 30-day challenge and find out how much of your spending is habit, not need.</p></div>
+  <div class="section-label">Subscription audit <small>do this twice a year</small></div>
+  <form class="quick-add" id="subForm" aria-label="Add a subscription">
+    <input class="desc" name="name" placeholder="Service (streaming, gym, app…)" required>
+    <input class="amt2 num" name="cost" inputmode="decimal" placeholder="$/month" required>
+    <button class="mini-btn" type="submit">Add</button>
+  </form>
+  ${S.subs.length?`<div class="table-scroll"><table class="grid">
+    <thead><tr><th>Service</th><th class="r">$/mo</th><th class="r">$/yr</th><th class="r">Verdict</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`
+    :'<p class="empty">Nothing listed yet. Most households are startled by this table — that is the point of it.</p>'}
+  <div class="found"><div>
+      <div class="lbl">Found money — yearly cost of everything cancelled</div>
+      <div class="big num" id="foundNum" data-target="${found}">${fmt(found)}</div></div>
+    <div style="font-size:12.5px;max-width:34ch;color:rgba(255,255,255,.8)">Every cancel is a raise you gave yourself. Aim it at the focus debt before it evaporates.</div>
+  </div>
+  <div class="section-label">30-day no-spend challenge <small>${doneCount}/30 clean days</small></div>
+  <label style="display:block;font-size:12.5px;color:var(--soft);margin-bottom:10px">Allowed essentials
+    <input class="essentials" type="text" value="${esc(S.nospend.essentials)}" placeholder="groceries, fuel, bills…" data-ess></label>
+  <div class="stamps">${stamps}</div>
+  <p class="streak">Current streak: <b class="num">${streak} day${streak===1?'':'s'}</b> · best run: <b class="num">${best}</b>. A no-spend month exists to show you which purchases were habit — notice what you didn't miss.</p>`;
+}
+
+/* ============================== events ============================== */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button'); if(!t) return;
+  if(t.dataset.go){ S.tab=t.dataset.go; commit(); window.scrollTo({top:0}); return; }
+  if(t.dataset.month){ S.month=t.dataset.month; commit(); return; }
+  if(t.dataset.act==='dismissHint'){ S.hintDismissed=true; commit(); return; }
+  if(t.dataset.add){
+    const mo=month();
+    if(t.dataset.add==='income') mo.income.push({name:'',expected:'',actual:''});
+    if(t.dataset.add==='fixed') mo.fixed.push({name:'',amount:'',paid:false});
+    if(t.dataset.add==='variable') mo.variable.push({name:'',planned:''});
+    if(t.dataset.add==='fund') S.funds.push({name:'',goal:'',monthly:'',saved:''});
+    commit(); return;
+  }
+  if(t.dataset.del){ const [list,i]=t.dataset.del.split('.'); month()[list].splice(+i,1); commit(); return; }
+  if(t.dataset.delx!==undefined){ month().expenses.splice(+t.dataset.delx,1); commit(); return; }
+  if(t.dataset.paid!==undefined){ const f=month().fixed[+t.dataset.paid]; f.paid=!f.paid; commit(); return; }
+  if(t.dataset.deldebt!==undefined){ S.debts.splice(+t.dataset.deldebt,1); commit(); return; }
+  if(t.dataset.deldep!==undefined){ S.savings.deposits.splice(+t.dataset.deldep,1); commit(); return; }
+  if(t.dataset.delfund!==undefined){ S.funds.splice(+t.dataset.delfund,1); commit(); return; }
+  if(t.dataset.delsub!==undefined){ S.subs.splice(+t.dataset.delsub,1); commit(); return; }
+  if(t.dataset.dec){ const [i,d]=t.dataset.dec.split('.'); S.subs[+i].decision=d; commit(); return; }
+  if(t.dataset.stamp!==undefined){ const i=+t.dataset.stamp; S.nospend.days[i]=!S.nospend.days[i]; commit(); return; }
+});
+
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.edit){ const [list,i,field]=t.dataset.edit.split('.'); month()[list][+i][field]=t.value; commit(); return; }
+  if(t.dataset.fund){ const [i,field]=t.dataset.fund.split('.'); S.funds[+i][field]=t.value; commit(); return; }
+  if(t.dataset.sav!==undefined){ S.savings[t.dataset.sav]=t.value; commit(); return; }
+  if(t.dataset.ess!==undefined){ S.nospend.essentials=t.value; clearTimeout(saveTimer); saveTimer=setTimeout(save,250); return; }
+});
+
+document.addEventListener('submit',e=>{
+  e.preventDefault();
+  const f=e.target, v=name=>f.elements[name]?f.elements[name].value.trim():'';
+  if(f.id==='expForm'){
+    if(!v('desc')||!v('amt')) return;
+    month().expenses.push({day:v('day'),desc:v('desc'),cat:v('cat'),amt:v('amt')});
+    commit(); return;
+  }
+  if(f.id==='debtForm'){
+    if(!v('name')||!v('balance')) return;
+    S.debts.push({name:v('name'),start:v('balance'),balance:v('balance'),apr:v('apr'),min:v('min')});
+    commit(); return;
+  }
+  if(f.id==='depForm'){
+    if(!v('amt')) return;
+    S.savings.deposits.push({label:v('label'),amt:v('amt')});
+    commit(); return;
+  }
+  if(f.id==='subForm'){
+    if(!v('name')||!v('cost')) return;
+    S.subs.push({name:v('name'),cost:v('cost'),decision:'keep'});
+    commit(); return;
+  }
+  if(f.dataset.payform!==undefined){
+    const i=+f.dataset.payform, amt=n(f.querySelector('input').value);
+    if(amt<=0) return;
+    const d=S.debts[i], before=n(d.balance);
+    d.balance=String(Math.max(0,before-amt));
+    if(before>0&&n(d.balance)<=0) celebrate();
+    commit(); return;
+  }
+});
+
+/* ---- one small celebration when a debt dies ---- */
+function celebrate(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=document.getElementById('confetti'), ctx=cv.getContext('2d');
+  cv.width=innerWidth; cv.height=innerHeight;
+  const colors=['#0E5E56','#12756B','#E9F0EE','#A8371F','#26241F'];
+  const bits=Array.from({length:90},(_,i)=>({
+    x:innerWidth/2+(i%2?1:-1)*Math.pow(i*7%37,1.3), y:innerHeight*0.35,
+    vx:((i*13)%21-10)/2.2, vy:-4-((i*7)%30)/6, r:3+(i%4),
+    c:colors[i%colors.length], a:1, spin:(i%7-3)/10, ang:i
+  }));
+  let frame=0;
+  (function tick(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    bits.forEach(b=>{
+      b.x+=b.vx; b.y+=b.vy; b.vy+=0.18; b.ang+=b.spin; b.a-=0.008;
+      ctx.save(); ctx.globalAlpha=Math.max(0,b.a); ctx.translate(b.x,b.y); ctx.rotate(b.ang);
+      ctx.fillStyle=b.c; ctx.fillRect(-b.r,-b.r/2,b.r*2,b.r); ctx.restore();
+    });
+    if(++frame<130) requestAnimationFrame(tick); else ctx.clearRect(0,0,cv.width,cv.height);
+  })();
+}
+
+/* ---- backup / restore / reset ---- */
+document.getElementById('btnExport').addEventListener('click',()=>{
+  const json=JSON.stringify(S,null,2);
+  try{
+    const blob=new Blob([json],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='budget-reset-backup.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){}
+  /* some embedded viewers block downloads — the clipboard copy is the fallback */
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(json)
+      .then(()=>pulse('Backup downloaded + copied to clipboard'))
+      .catch(()=>pulse('Backup downloaded'));
+  }else pulse('Backup downloaded');
+});
+document.getElementById('btnImport').addEventListener('click',()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+      const p=JSON.parse(r.result);
+      if(typeof p!=='object'||!p.months) throw new Error('bad file');
+      S=Object.assign(defaultState(),p); commit(); pulse('Backup restored');
+    }catch(err){ pulse('That file is not a Budget Reset backup'); } };
+  r.readAsText(file); e.target.value='';
+});
+document.getElementById('btnReset').addEventListener('click',()=>{
+  if(!confirm('Erase everything and start over? Export a backup first if you want to keep this data.')) return;
+  S=defaultState(); try{localStorage.removeItem(KEY);}catch(e){}
+  commit();
+});
+
+render();
+</script>
