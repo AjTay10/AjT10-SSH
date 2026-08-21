@@ -1,0 +1,90 @@
+{
+  "edges": [
+    {
+      "from": "gta_online_guides",
+      "note": "several active channels + GTA BOOM/Sportskeeda articles; recurring search resets weekly",
+      "rel": "contains",
+      "to": "weekly_update_format",
+      "weight": 1.0
+    },
+    {
+      "from": "gta_online_guides",
+      "note": "2026-dated supply heavy, hype-titled; gap is verified per-hour math",
+      "rel": "contains",
+      "to": "solo_money_format",
+      "weight": 1.0
+    },
+    {
+      "from": "gta_online_guides",
+      "note": "page-1 dominated by websites not videos as of 2026-08; video gap",
+      "rel": "contains",
+      "to": "beginner_first_business",
+      "weight": 1.0
+    },
+    {
+      "from": "gta6_launch",
+      "note": "console-only launch strands PC audience; PC-waiting content is the open lane",
+      "rel": "affects",
+      "to": "gta_online_guides",
+      "weight": 1.0
+    },
+    {
+      "from": "bf6_loadout_format",
+      "note": "alternative lane; supplied by fast-turnaround channels, Season 4 active 2026-08",
+      "rel": "competes_with",
+      "to": "gta_online_guides",
+      "weight": 1.0
+    }
+  ],
+  "nodes": {
+    "beginner_first_business": {
+      "attrs": {
+        "current_meta": "acid_lab",
+        "gap": "video_thin",
+        "supply": "web_articles_dominate"
+      },
+      "name": "GTA best-first-business question",
+      "type": "topic"
+    },
+    "bf6_loadout_format": {
+      "attrs": {
+        "season": "4",
+        "supply": "fast_turnaround_channels"
+      },
+      "name": "Battlefield 6 loadout guide format",
+      "type": "topic"
+    },
+    "gta6_launch": {
+      "attrs": {
+        "pc_version": "unannounced",
+        "platforms": "ps5_xbox_only"
+      },
+      "name": "GTA VI launch Nov 19 2026",
+      "type": "campaign"
+    },
+    "gta_online_guides": {
+      "attrs": {
+        "platform": "youtube",
+        "status": "active_niche"
+      },
+      "name": "GTA Online guide niche",
+      "type": "topic"
+    },
+    "solo_money_format": {
+      "attrs": {
+        "gap": "honest_per_hour_math",
+        "supply": "saturated"
+      },
+      "name": "GTA solo money guide format",
+      "type": "topic"
+    },
+    "weekly_update_format": {
+      "attrs": {
+        "cadence": "weekly",
+        "supply": "contested"
+      },
+      "name": "GTA weekly-update coverage format",
+      "type": "topic"
+    }
+  }
+}
